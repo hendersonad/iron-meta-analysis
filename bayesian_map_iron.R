@@ -478,7 +478,7 @@ new_trial <- data.frame(trial="new_study", sd = 1e100)
 predictions_draws <- function(brms_object, tauval){
   set.seed(1341)
   post_map_mc_brms <- posterior_linpred(brms_object,
-                                        newdata=new_trial,
+                                        newdata=data.frame(trial="new_study", sd = 1e100),
                                         # apply inverse link function
                                         transform = FALSE, 
                                         # allows new studies
@@ -486,20 +486,36 @@ predictions_draws <- function(brms_object, tauval){
                                         # and samples these according to the model
                                         sample_new_levels = "gaussian"
   )
-  posterior::summarize_draws(exp(post_map_mc_brms), ~quantile(.x, probs = c(0.025, 0.5, 0.975)))
+  
+  confirm_post_pred <- posterior_linpred(brms_object,
+                                        newdata = iron_data,
+                                        # apply inverse link function
+                                        transform = FALSE, 
+                                        # allows new studies
+                                        allow_new_levels = FALSE
+  )
+  bind_rows(
+    posterior::summarize_draws(exp(post_map_mc_brms), ~quantile(.x, probs = c(0.025, 0.5, 0.975))),
+    posterior::summarize_draws(exp(confirm_post_pred), ~quantile(.x, probs = c(0.025, 0.5, 0.975)))
+  ) |> 
+    mutate(
+      newtrial = c("average", levels(iron_data$trial))
+    )
 }
 
-bind_rows(
+bayes_pred <- bind_rows(
   predictions_draws(ranef_brms_0pt5),
   predictions_draws(ranef_brms_0pt125),
   predictions_draws(ranef_brms_0pt05)
-  ) |>
-  mutate(tau = factor(c(0.5, 0.125, 0.05))) |> 
+  ) |> 
+  mutate(tau = factor(rep(c(0.5, 0.125, 0.05), each = 5))) |> 
   janitor::clean_names() |> 
   select(tau, everything()) |> 
   select(-variable) |> 
   gt::gt() |>
-  gt::fmt_number(decimals = 2) |> 
+  gt::fmt_number(decimals = 2) 
+bayes_pred
+bayes_pred |> 
   gt::gtsave(filename = here::here("output/new_trial_predictions.html"))
 
 
