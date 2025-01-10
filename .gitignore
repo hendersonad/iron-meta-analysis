@@ -1,0 +1,33 @@
+# NO further updates to the relative file path files
+finearts_path.R
+finearts_paths.ado
+finearts_paths.do
+
+# no data
+*.csv
+*.xlsx
+*.rds
+*.dta
+
+# no utils files - work in progress stuff
+utils/*
+
+# no output files
+output/*
+# but we do want the readme file https://stackoverflow.com/questions/68945326/how-to-use-gitignore-to-ignore-everything-in-a-directory-except-one-file
+!output
+!output/README.md
+
+# Utility files 
+.Rproj.user/
+*.DS_Store
+.Rhistory
+*temp*
+
+# Stata log files 
+*.smcl
+*.stswp
+
+# Useful documents 
+docs/*
+datapaths.R
