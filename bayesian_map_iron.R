@@ -14,93 +14,79 @@ library(brms)
 library(scales)
 library(ggsci)
 
-# search strategy 
-# Full:
-# (((((Ferric[Title]) AND (derisomaltose[Title] OR carboxymaltose[Title])) AND (heart failure[Title])) AND (iron deficiency[Title])) AND (trial[Title/Abstract])) AND (randomised[Title/Abstract] OR randomized[Title/Abstract]) AND (placebo[Title/Abstract] OR "usual care"[Title/Abstract]) NOT (substudy[Title/Abstract]) NOT (subgroup analysis[Title] OR sub-analysis[Title] OR subgroup of patients[Title/Abstract]) NOT (rationale[Title])
-# Get IV iron in HF with iron deficiency 
-# (((Ferric[Title]) AND (derisomaltose[Title] OR carboxymaltose[Title])) AND (heart failure[Title])) AND (iron deficiency[Title]))
-# Get randomised controlled trials with a placebo/usual care arm
-# (trial[Title/Abstract])) AND (randomised[Title/Abstract] OR randomized[Title/Abstract]) AND (placebo[Title/Abstract] OR "usual care"[Title/Abstract]) 
-# Filter out subgroup analyses
-# NOT (substudy[Title/Abstract]) NOT (subgroup analysis[Title] OR sub-analysis[Title] OR subgroup of patients[Title/Abstract])
-# Filter out rationale/design paper
-# NOT (rationale[Title])
-# 
-# 5 results. von Haehling et al. does not have HF hosp. as outcome
+source(here::here("iron_data.R"))
 
-iron_data <- data.frame(
-  trial = factor(c("CONFIRM-HF", "AFFIRM-AHF", "HEART-FID", "IRONMAN"),
-                 levels = c("CONFIRM-HF", "AFFIRM-AHF", "HEART-FID", "IRONMAN")),
-  trt = c(46, 372, 316, 411),
-  placebo = c(22, 293, 296, 336),
-  n_trt = c(152, 567, 1532, 569),
-  n_placebo = c(152, 565, 1533, 568),
-  lrr = log(c(0.51, 0.76, 0.96, 0.82)),
-  sd = c(
-    (log(0.95)-log(0.28))/3.92,
-    (log(0.96)-log(0.60))/3.92,
-    (log(1.11)-log(0.82))/3.92,
-    (log(1.02)-log(0.66))/3.92
+# plot the estimates ------------------------------------------------------
+all_iron_estimates <- bind_rows(
+  iron_rec_cnpt, iron_rec_hfh, iron_tte_cnpt, iron_tte_cvd, iron_tte_acm
+  ) |>
+  mutate(outcome = factor(rep(
+    c(
+      "Recurrent HFH and\nCV death",
+      "Recurrent HFH",
+      "Time to CV death or HFH",
+      "Time to CV death",
+      "Time to death"
+    ),
+    each = 4
   ),
-  estimate = c(0.51, 0.76, 0.96, 0.82),
-  uci = c(0.95, 0.96, 1.11, 1.02),
-  lci = c(0.28, 0.60, 0.82, 0.66),
-  n = c(304, 1132, 3065, 1137)
-)
+  levels = c(
+    "Recurrent HFH and\nCV death",
+    "Recurrent HFH",
+    "Time to CV death or HFH",
+    "Time to CV death",
+    "Time to death"
+  )))
 
-### TTE composite (CV death of HFH)
-iron_tte <- data.frame(
-  trial = factor(c("CONFIRM-HF", "AFFIRM-AHF", "HEART-FID", "IRONMAN"),
-                 levels = c("CONFIRM-HF", "AFFIRM-AHF", "HEART-FID", "IRONMAN")),
-  trt = c(46, 372, 316, 411),
-  placebo = c(22, 293, 296, 336),
-  n_trt = c(152, 567, 1532, 569),
-  n_placebo = c(152, 565, 1533, 568),
-  lrr = log(c(0.53, 0.80, 0.84, 0.93)),
-  sd = c(
-    (log(0.95)-log(0.30))/3.92,
-    (log(0.98)-log(0.66))/3.92,
-    (log(1.02)-log(0.70))/3.92,
-    (log(1.06)-log(0.81))/3.92
-  ),
-  estimate = c(0.53, 0.80, 0.84, 0.93),
-  uci = c(0.95, 0.98, 1.02, 1.06),
-  lci = c(0.30, 0.66, 0.70, 0.81),
-  n = c(304, 1132, 3065, 1137)
-)
+all_estimates <- ggplot(all_iron_estimates, aes(x = estimate, xmin = lci, xmax = uci, y = fct_rev(trial), group = trial)) +
+  geom_vline(xintercept = 1, lty = 1, alpha = 0.1) +
+  geom_linerange() +
+  geom_text(aes(label = formatC(lci, format = "f", width = 3, flag = "0", digits = 1), x = lci), nudge_y = -0.2, size = 7, size.unit = "pt") + 
+  geom_text(aes(label = formatC(uci, format = "f", width = 3, flag = "0", digits = 1), x = uci), nudge_y = -0.2, size = 7, size.unit = "pt") + 
+  geom_text(aes(label = formatC(estimate, format = "f", width = 3, flag = "0", digits = 1), x = estimate), nudge_y = 0.2, size = 7, size.unit = "pt") + 
+  geom_point(size = 1.5, pch = 16) +
+  facet_wrap(~outcome, ncol = 3) +
+  scale_x_continuous(limits = c(0.149, 2.5), breaks = c(0.5, 1.0, 2.0), transform = "log") +
+  labs(y = "", x = "RR/HR*", caption = "* RR for recurrent events, HR for time to first") +
+  ggthemes::theme_few(base_size = 7) +
+  theme(plot.title = element_text(hjust = 0, face = "bold"),
+        plot.title.position = "plot",
+        strip.text = element_text(hjust = 0))
 
-## just the big chronic HFrEF ones
-iron_data_hf <- iron_data[3:4, ]
-
+ggsave(all_estimates, filename = here::here("output/fig1_trial_estimates.pdf"), width = 6  , height = 4, units = "in")
+ggsave(all_estimates, filename = here::here("output/fig1_trial_estimates.svg"), width = 6  , height = 4, units = "in")
+ggsave(all_estimates, filename = here::here("output/fig1_trial_estimates.jpeg"), width = 6 , height = 4, units = "in")
 
 # Frequentist meta analyses -----------------------------------------------
+do_frequentist_style <- function(
+    input_data = data.frame(),
+    label = "an estimate"
+){
+  freq_eff <- meta::metagen(
+    TE = input_data$lrr,
+    seTE = input_data$sd,
+    studlab = input_data$trial,
+    n.e = input_data$n_trt,
+    n.c = input_data$n_placebo,
+    control=list(maxiter=100),
+    method.tau = "REML",
+    sm = "RR"
+  )
+  
+  filename = here::here("output", paste0("frequentist_meta_", deparse(substitute(input_data)), ".pdf"))
+  print(filename)
+  pdf(file = filename, width = 9 , height = 7)
+    forest(freq_eff, layout = "JAMA")  
+  dev.off()
+  
+  freq_eff
+}
 
-freq_eff <- meta::metagen(
-  TE = iron_data$lrr,
-  seTE = iron_data$sd,
-  studlab = iron_data$trial,
-  sm = "RR"
-)
-freq_eff_hf <- meta::metagen(
-  TE = iron_data_hf$lrr,
-  seTE = iron_data_hf$sd,
-  studlab = iron_data_hf$trial,
-  sm = "RR"
-)
-freq_eff_tte <- meta::metagen(
-  TE = iron_tte$lrr,
-  seTE = iron_tte$sd,
-  studlab = iron_tte$trial,
-  sm = "HR"
-)
-
-summary(freq_eff)
-fp <- forest(freq_eff, layout = "JAMA")
-
-ggsave(filename = here::here("output/frequentist_meta.svg"), width = 9 , height = 7, units = "in")
-
-fp_tte <- forest(freq_eff_tte, layout = "JAMA")
-ggsave(filename = here::here("output/frequentist_meta_tte.svg"), width = 9 , height = 7, units = "in")
+freq_rec_cnpt <- do_frequentist_style(iron_rec_cnpt, label = "RR")
+freq_rec_hfh <- do_frequentist_style(iron_rec_hfh, label = "RR")
+freq_tte_cnpt <- do_frequentist_style(iron_tte_cnpt, label = "HR")
+freq_tte_cvd <- do_frequentist_style(iron_tte_cvd, label = "HR")
+freq_tte_acm <- do_frequentist_style(iron_tte_acm, label = "HR")
 
 # Bayesian meta analyses with RBesT --------------------------------------------------
 do_meta <- function(tauprior = 1/8, betaprior = 2){
@@ -159,8 +145,6 @@ cowplot::plot_grid(
 
 ggsave(here::here("output/RBesT_bayesian_meta_results.svg"), width = 9 , height = 7, units = "in")
 
-
-
 # Bayesian meta analyses with brms --------------------------------------------------
 iron_data
 fixed_model <- brms::bf(lrr | se(sd) ~ 1, family=gaussian)
@@ -204,8 +188,8 @@ do_ranef_brms <- function(dataset = iron_data, tauprior = 0.5){
   )
 }
 
-ranef_brms_0pt5 <- do_ranef_brms(dataset =iron_data, 0.5)
-ranef_brms_0pt125 <- do_ranef_brms(dataset =iron_data, 0.125)
+ranef_brms_0pt5 <- do_ranef_brms(dataset = iron_data, 0.5)
+ranef_brms_0pt125 <- do_ranef_brms(dataset = iron_data, 0.125)
 ranef_brms_0pt05 <- do_ranef_brms(dataset = iron_data, 0.05)
 
 ##
@@ -262,12 +246,13 @@ plot_results <- function(df, freq_fit, bayes_fit, rr_or_hr){
   do_plot <- function(gg_in, col = 1, tt, xlab, ...){
     gg_in + 
       geom_vline(xintercept = 1, alpha = 0.4, lty = 3) + 
-      geom_linerange(linewidth = 1.25, color = col) +
-      geom_point(size = 4, pch = 16 , color = col) +
+      geom_linerange(color = col) +
+      geom_point(size = 1.5, pch = 16 , color = col) +
       labs(y = "", x = xlab, title = tt) +
       scale_x_continuous(limits = c(0.25, 1.5), breaks = c(0.5, 1.0, 1.5), transform = "log") +
-      ggthemes::theme_few() +
-      theme(plot.title = element_text(hjust = 0, face = "bold"))
+      ggthemes::theme_few(base_size = 7) +
+      theme(plot.title = element_text(hjust = 0, face = "bold"),
+            plot.title.position = "plot")
   }
   panel_a <- do_plot(ggplot(df, aes(x = estimate, xmin = lci, xmax = uci, y = forcats::fct_rev(trial))),
                      col = "gray60", tt = paste0("A. ", title_lab, " ratio and 95% CI of each trial"), xlab = paste(x_lab, "(95% CI)"))
@@ -316,8 +301,8 @@ plot_results <- function(df, freq_fit, bayes_fit, rr_or_hr){
       select(Source = result, `RR (95% CI or CrI)` = txt_result) |> 
       ggplot(aes(x = 1, y = forcats::fct_rev(Source), label = `RR (95% CI or CrI)`)) +
       xlim(c(0.9, 1.2)) +
-      geom_text() +
-      theme_void()
+      geom_text(size = 7, size.unit = "pt") +
+      theme_void(base_size = 7)
   }
   a <- plot_data(data_subset)
   b <- plot_data(freq_subset)
@@ -334,7 +319,7 @@ plot_results <- function(df, freq_fit, bayes_fit, rr_or_hr){
   )
   return(list(panel_a, a, panel_b, b, panel_c, c, abstract, plot_combined))
 }
-rr_plots <- plot_results(df = iron_data, freq_fit = freq_eff, bayes_fit = bayes_est, rr_or_hr = "RR")
+rr_plots <- plot_results(df = iron_data, freq_fit = freq_eff, bayes_fit = rr_bayes_est, rr_or_hr = "RR")
 hr_plots <- plot_results(df = iron_tte, freq_fit = freq_eff_tte, bayes_fit = hr_bayes_est, rr_or_hr = "HR")
 hr_plots[[8]]
 rr_plots[[8]]
@@ -345,6 +330,7 @@ rr_plots[[8]]
 # ggsave(here::here("output/iron_abstract_combined.pdf"), width = 6 , height = 9, units = "in")
 ggsave(hr_plots[[8]], filename = here::here("output/iron_abstract_combined_tte.pdf"), width = 6 , height = 9, units = "in")
 ggsave(rr_plots[[8]], filename = here::here("output/iron_abstract_combined.pdf"), width = 6 , height = 9, units = "in")
+ggsave(rr_plots[[8]], filename = here::here("output/iron_abstract_combined.jpeg"), width = 820*0.5 , height = 1080*0.5, units = "px", scale = 2)
 
 # summarising a posterior -----------------------------------------------
 posterior_plot <- ranef_brms_0pt125 |> 
@@ -385,8 +371,9 @@ hypothesis(ranef_brms_0pt5, "Intercept < 0")
 hypothesis(ranef_brms_0pt5, "Intercept < -0.1053605")
 hypothesis(ranef_brms_0pt5, "Intercept < -0.1625189")
 
-
 #  forest plot of 0.125 model ---------------------------------------------
+new_trial <- data.frame(trial="new_study", sd = 1e100)
+
 forestplot_bayesmeta <- function(brms_object, fillcol, rawdata = iron_data){
   set.seed(1341)
   
@@ -400,7 +387,7 @@ forestplot_bayesmeta <- function(brms_object, fillcol, rawdata = iron_data){
   
   # Predicted effect in a new study 
   out_predict <- posterior_linpred(brms_object,
-                                        newdata=new_trial,
+                                        newdata = new_trial,
                                         # apply inverse link function
                                         transform = FALSE, 
                                         # allows new studies
@@ -419,7 +406,7 @@ forestplot_bayesmeta <- function(brms_object, fillcol, rawdata = iron_data){
     # Ensure that Average effect is on the bottom of the forest plot
     mutate(trial = str_replace_all(trial, "\\.", " ")) |> 
     # tidybayes garbles names so fix here
-    mutate(trial = factor(trial, levels  = c("Predicted", "Average", "IRONMAN", "HEART-FID", "AFFIRM-AHF", "CONFIRM-HF"))) 
+    mutate(trial = factor(trial, levels  = c("Predicted", "Average", "HEART-FID", "IRONMAN", "AFFIRM-AHF", "CONFIRM-HF"))) 
   
   # Data frame of summary numbers
   out_all_sum <- group_by(out_all, trial) |> 
@@ -431,7 +418,7 @@ forestplot_bayesmeta <- function(brms_object, fillcol, rawdata = iron_data){
     # average
     geom_vline(xintercept = pull(out_all_sum[out_all_sum$trial == "Average", "b_Intercept"]), size = 0.7, lty = 1) +
     # Zero
-    geom_vline(xintercept = 1, size = .25, lty = 2) +
+    geom_vline(xintercept = 1, linewidth = .25, lty = 2) +
     stat_halfeye(.width = c(.8, .95), fill = fillcol) +
     # Add text labels
     geom_text(
@@ -460,7 +447,6 @@ plot_grid(
 )
 ggsave(here::here("output/iron_tau_forestplots.pdf"), width = 14, height = 4, units = "in")
 
-
 # Get the BMJ palette with 3 colors
 pal_cols <- ggsci::pal_bmj("default")(3)
 tte_fp1 <- forestplot_bayesmeta(tte_ranef_brms_0pt5, fillcol = pal_cols[1], rawdata = iron_tte) + labs(title = bquote(tau ~ scale == 0.5), x = "HR")
@@ -474,7 +460,6 @@ ggsave(here::here("output/iron_tau_forestplots_tte.pdf"), width = 14, height = 4
 
 
 # prediuction of new study  -----------------------------------------------
-new_trial <- data.frame(trial="new_study", sd = 1e100)
 predictions_draws <- function(brms_object, tauval){
   set.seed(1341)
   post_map_mc_brms <- posterior_linpred(brms_object,
@@ -514,6 +499,7 @@ bayes_pred <- bind_rows(
   select(-variable) |> 
   gt::gt() |>
   gt::fmt_number(decimals = 2) 
+
 bayes_pred
 bayes_pred |> 
   gt::gtsave(filename = here::here("output/new_trial_predictions.html"))
@@ -563,4 +549,4 @@ cowplot::plot_grid(
   plot_draws(ranef_brms_0pt125, 0.125),
   plot_draws(ranef_brms_0pt05, 0.05),
   ncol = 1
-)  
+)
