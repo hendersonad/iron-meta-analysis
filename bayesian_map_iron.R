@@ -20,23 +20,17 @@ source(here::here("iron_data.R"))
 all_iron_estimates <- bind_rows(
   iron_rec_cnpt, iron_rec_hfh, iron_tte_cnpt, iron_tte_cvd, iron_tte_acm
   ) |>
-  mutate(outcome = factor(rep(
-    c(
-      "Recurrent HFH and\nCV death",
-      "Recurrent HFH",
+  mutate(outcome = factor(
+    outcome, 
+    levels = c(
+      "Total HFH and CV death",
+      "Total HFH",
       "Time to CV death or HFH",
       "Time to CV death",
       "Time to death"
-    ),
-    each = 4
-  ),
-  levels = c(
-    "Recurrent HFH and\nCV death",
-    "Recurrent HFH",
-    "Time to CV death or HFH",
-    "Time to CV death",
-    "Time to death"
-  )))
+      )
+    )
+    )
 
 all_estimates <- ggplot(all_iron_estimates, aes(x = estimate, xmin = lci, xmax = uci, y = fct_rev(trial), group = trial)) +
   geom_vline(xintercept = 1, lty = 1, alpha = 0.1) +
@@ -88,90 +82,19 @@ freq_tte_cnpt <- do_frequentist_style(iron_tte_cnpt, label = "HR")
 freq_tte_cvd <- do_frequentist_style(iron_tte_cvd, label = "HR")
 freq_tte_acm <- do_frequentist_style(iron_tte_acm, label = "HR")
 
-# Bayesian meta analyses with RBesT --------------------------------------------------
-do_meta <- function(tauprior = 1/8, betaprior = 2){
-
-  set.seed(354214)
-  options(RBesT.MC.control=list(adapt_delta=0.999))
-  mra_map <- RBesT::gMAP(
-    cbind(lrr, sd) ~ 1 | trial, 
-    family = gaussian, 
-    weights = n,
-    data = iron_data,
-    tau.dist = "HalfNormal", 
-    tau.prior = cbind(0, tauprior),
-    beta.prior = cbind(0, betaprior))
-  
-  ## summary of the meta-analysis model
-  summary(mra_map) 
-  
-  ## summary of the estimated treatment effect
-  thetaest <- formatC(exp(summary(mra_map)$theta), digits = 2, big.mark = ",") |> as.data.frame()
-  thetaest_txt <- paste0(thetaest$mean, " (", thetaest$`2.5%`, ", ", thetaest$`97.5%`,")")
-  
-  ## get tau estimates
-  tauest <- formatC(summary(mra_map)$tau, digits = 2, big.mark = ",") |> as.data.frame()
-  tauest_txt <- paste0(tauest$mean, " (", tauest$`2.5%`, ", ", tauest$`97.5%`,")")
-  
-  ## get beta estimates
-  betaest <- formatC(summary(mra_map)$beta, digits = 2, big.mark = ",") |> as.data.frame()
-  betaest_txt <- paste0(betaest$mean, " (", betaest$`2.5%`, ", ", betaest$`97.5%`,")")
-  
-  #forest_plot
-  mra_plots <- forest_plot(mra_map, size = 0.5, est = "Mean", model = "both")
-  mra_plots +
-    labs(y = "Log Rate Ratio", x = "Study",
-         title = paste0("Mean estimate: ", thetaest_txt),
-         caption = paste0("Priors: beta ~ N(0, ", betaprior,"); tau ~ halfN(0, ", tauprior, ")\n
-         Posteriors: tau: ", tauest_txt, "; beta: ",betaest_txt)) +
-    scale_y_continuous(transform = "exp") + 
-    geom_hline(yintercept = 0) +
-    legend_move("right") +
-    theme(
-      text = element_text(family = "helvetica")
-    )
-}
-
-(plotInf <- do_meta(betaprior = 5e10, tauprior = 5e10))
-(plot2 <- do_meta(tauprior = 0.5))
-(plot3 <- do_meta(tauprior = 0.125))
-(plot4 <- do_meta(tauprior = 0.05))
-
-cowplot::plot_grid(
-  plot2, plot3, plot4, 
-  labels = "AUTO",
-  ncol = 1
-)
-
-ggsave(here::here("output/RBesT_bayesian_meta_results.svg"), width = 9 , height = 7, units = "in")
 
 # Bayesian meta analyses with brms --------------------------------------------------
-iron_data
-fixed_model <- brms::bf(lrr | se(sd) ~ 1, family=gaussian)
-random_model <- brms::bf(lrr | se(sd) ~ 1 + (1 | trial), family=gaussian)
-
-get_prior(fixed_model, iron_data)
-fixed_mc_brms <- brm(
-  fixed_model,
-  iron_data,
-  prior = prior(normal(0, 2), class="Intercept"),
-  seed = 4767,
-  refresh = 1000
-)
-
-marginaleffects::avg_predictions(fixed_mc_brms) |> exp()
-
 ## random effects
-get_prior(random_model, iron_data)
-
 fs::dir_create(here("brmsfits"))
 
-do_ranef_brms <- function(dataset = iron_data, tauprior = 0.5){
+do_ranef_brms <- function(dataset = iron_data, tauprior = 0.5, savename = "temp"){
+  random_model <- brms::bf(lrr | se(sd) ~ 1 + (1 | trial), family=gaussian)
+  
   random_prior <- prior(uniform(-2, 2), class="Intercept", lb = -2, ub = 2) +
     prior(normal(0, tauprior), class="sd", lb = 0, group="trial")
   stanvars <- stanvar(tauprior, name = "tauprior")
   
-  fit_name <- paste0("brmsfits/", deparse(substitute(dataset)), "_", tauprior)
+  fit_name <- paste0("brmsfits/", savename, "_", tauprior)
   brm(
     random_model,
     dataset,
@@ -188,18 +111,36 @@ do_ranef_brms <- function(dataset = iron_data, tauprior = 0.5){
   )
 }
 
-ranef_brms_0pt5 <- do_ranef_brms(dataset = iron_data, 0.5)
-ranef_brms_0pt125 <- do_ranef_brms(dataset = iron_data, 0.125)
-ranef_brms_0pt05 <- do_ranef_brms(dataset = iron_data, 0.05)
 
-##
-tte_ranef_brms_0pt5 <- do_ranef_brms(dataset = iron_tte, 0.5)
-tte_ranef_brms_0pt125 <- do_ranef_brms(dataset = iron_tte, 0.125)
-tte_ranef_brms_0pt05 <- do_ranef_brms(dataset = iron_tte, 0.05)
+do_bayesian_taus <- function(input_data){
+  name <- stringr::str_replace_all(stringr::str_to_lower(input_data$outcome[1]), " ", "_")
+  ranef_brms_0pt5 <- do_ranef_brms(dataset = input_data, 0.5, savename = name)
+  ranef_brms_0pt125 <- do_ranef_brms(dataset = input_data, 0.125, savename = name)
+  ranef_brms_0pt05 <- do_ranef_brms(dataset = input_data, 0.05, savename = name)
+  
+  return(list(
+    ranef_brms_0pt5 = ranef_brms_0pt5,
+    ranef_brms_0pt125 = ranef_brms_0pt125,
+    ranef_brms_0pt05 = ranef_brms_0pt05
+  ))
+}
+datasets <- list(
+  iron_rec_cnpt, iron_rec_hfh, iron_tte_cnpt, iron_tte_cvd, iron_tte_acm
+)
+bayesian_fits <- purrr::map(datasets, .f = do_bayesian_taus)
 
+bayes_rec_cnpt <- bayesian_fits[[1]]
+bayes_rec_hfh <- bayesian_fits[[2]]
+bayes_tte_cnpt <- bayesian_fits[[3]]
+bayes_tte_cvd <- bayesian_fits[[4]]
+bayes_tte_acm <- bayesian_fits[[5]]
 
 # combine the brms estimates ----------------------------------------------
-combine_brms_out <- function(model1, model2, model3){
+combine_brms_out <- function(model_list){
+  model1 <- model_list$ranef_brms_0pt5
+  model2 <- model_list$ranef_brms_0pt125
+  model3 <- model_list$ranef_brms_0pt05
+  
   bayes_est <- dplyr::bind_cols(
     tau = paste0("Tau scale (", c(0.5, 0.125, 0.05), ")"),
     dplyr::bind_rows(
@@ -228,8 +169,12 @@ combine_brms_out <- function(model1, model2, model3){
   
   bayes_est
 }
-rr_bayes_est <- combine_brms_out(ranef_brms_0pt5, ranef_brms_0pt125, ranef_brms_0pt05)
-hr_bayes_est <- combine_brms_out(tte_ranef_brms_0pt5, tte_ranef_brms_0pt125, tte_ranef_brms_0pt05)
+
+bayes_estimates <- purrr::map(bayesian_fits, combine_brms_out)
+
+outcome_vector <- rep(levels(all_iron_estimates$outcome), each = 3)
+all_bayes_estimates <- bind_rows(bayes_estimates) |> 
+  mutate(outcome = factor(outcome_vector, levels = levels(all_iron_estimates$outcome)))
 
 # main plot for abstract --------------------------------------------------
 plot_results <- function(df, freq_fit, bayes_fit, rr_or_hr){
@@ -249,15 +194,15 @@ plot_results <- function(df, freq_fit, bayes_fit, rr_or_hr){
       geom_linerange(color = col) +
       geom_point(size = 1.5, pch = 16 , color = col) +
       labs(y = "", x = xlab, title = tt) +
-      scale_x_continuous(limits = c(0.25, 1.5), breaks = c(0.5, 1.0, 1.5), transform = "log") +
+      scale_x_continuous(limits = c(0.149, 2.5), breaks = c(0.5, 1.0, 2.0), transform = "log") +
       ggthemes::theme_few(base_size = 7) +
       theme(plot.title = element_text(hjust = 0, face = "bold"),
             plot.title.position = "plot")
   }
   panel_a <- do_plot(ggplot(df, aes(x = estimate, xmin = lci, xmax = uci, y = forcats::fct_rev(trial))),
-                     col = "gray60", tt = paste0("A. ", title_lab, " ratio and 95% CI of each trial"), xlab = paste(x_lab, "(95% CI)"))
-  panel_b <- do_plot(ggplot(freq_ef, aes(x = estimate, xmin = lci, xmax = uci, y = forcats::fct_rev(lab))), tt = "B. Frequentist meta-analysis", xlab = paste(x_lab, "(95% CI)"))
-  panel_c <- do_plot(ggplot(bayes_fit, aes(x = estimate, xmin = lci, xmax = uci, y = tau)), tt = "C. Bayesian meta-analysis with different priors\nfor between-trial heterogeneity", xlab = paste(x_lab, "(95% CrI)"))
+                     col = "gray60", tt = paste0("Data: ", title_lab, " ratio and 95% CI of each trial"), xlab = paste(x_lab, "(95% CI)"))
+  panel_b <- do_plot(ggplot(freq_ef, aes(x = estimate, xmin = lci, xmax = uci, y = forcats::fct_rev(lab))), tt = "A. Frequentist meta-analysis", xlab = paste(x_lab, "(95% CI)"))
+  panel_c <- do_plot(ggplot(bayes_fit, aes(x = estimate, xmin = lci, xmax = uci, y = tau)), tt = "B. Bayesian meta-analysis with different priors\nfor between-trial heterogeneity", xlab = paste(x_lab, "(95% CrI)"))
   
   cowplot::plot_grid(
     panel_a, panel_b, panel_c,
@@ -274,7 +219,7 @@ plot_results <- function(df, freq_fit, bayes_fit, rr_or_hr){
   
   make_table <- function(datain){
     datain |>
-      mutate(across(where(is.numeric), ~stringr::str_pad(round(., digits = 2), width = 4, pad = "0", side = "right"))) |> 
+      mutate(across(where(is.numeric), ~formatC(., format = "f", digits = 2, width = 4, flag = "0"))) |> 
       mutate(txt_result = paste0(estimate, " [", lci, "; ", uci, "]")) |> 
       select(Source = result, `RR (95% CI or CrI)` = txt_result) |> 
       flextable::flextable(cwidth = 1.5) |>
@@ -296,7 +241,7 @@ plot_results <- function(df, freq_fit, bayes_fit, rr_or_hr){
   
   plot_data <- function(datain){
     datain |> 
-      mutate(across(where(is.numeric), ~stringr::str_pad(round(., digits = 2), width = 4, pad = "0", side = "right"))) |> 
+      mutate(across(where(is.numeric), ~formatC(., format = "f", digits = 2, width = 4, flag = "0"))) |> 
       mutate(txt_result = paste0(estimate, " [", lci, "; ", uci, "]")) |> 
       select(Source = result, `RR (95% CI or CrI)` = txt_result) |> 
       ggplot(aes(x = 1, y = forcats::fct_rev(Source), label = `RR (95% CI or CrI)`)) +
@@ -317,61 +262,53 @@ plot_results <- function(df, freq_fit, bayes_fit, rr_or_hr){
     rel_heights = c(4, 2, 3),
     rel_widths = c(6, 4)
   )
-  return(list(panel_a, a, panel_b, b, panel_c, c, abstract, plot_combined))
+  
+  just_the_pooled_numbers <- cowplot::plot_grid(
+    # to leave space for a title later
+    NULL, NULL,
+    panel_b + theme(plot.title.position = "panel", plot.title = element_text(face = "plain")) + scale_x_continuous(limits = c(0.495, 1.4), breaks = c(0.5, 0.8, 1.0, 1.25), transform = "log"), 
+    b,
+    panel_c + theme(plot.title.position = "panel", plot.title = element_text(face = "plain")) + scale_x_continuous(limits = c(0.495, 1.4), breaks = c(0.5, 0.8, 1.0, 1.25), transform = "log"), 
+    c,
+    ncol = 2,
+    align = "h",
+    rel_heights = c(0.25, 2, 3),
+    rel_widths = c(6, 4)
+  ) 
+  
+  return(list(panel_a, a, panel_b, b, panel_c, c, abstract, plot_combined, just_the_pooled_numbers))
 }
-rr_plots <- plot_results(df = iron_data, freq_fit = freq_eff, bayes_fit = rr_bayes_est, rr_or_hr = "RR")
-hr_plots <- plot_results(df = iron_tte, freq_fit = freq_eff_tte, bayes_fit = hr_bayes_est, rr_or_hr = "HR")
-hr_plots[[8]]
-rr_plots[[8]]
+plot_rec_cnpt <- plot_results(df = iron_rec_cnpt, freq_fit = freq_rec_cnpt, bayes_fit = bayes_estimates[[1]], rr_or_hr = "RR")
+plot_rec_cnpt[[9]]
+plot_rec_hfh <- plot_results(df = iron_rec_hfh, freq_fit = freq_rec_hfh, bayes_fit = bayes_estimates[[2]], rr_or_hr = "RR")
+plot_tte_cnpt <- plot_results(df = iron_tte_cnpt, freq_fit = freq_tte_cnpt, bayes_fit = bayes_estimates[[3]], rr_or_hr = "HR")
+plot_tte_cvd <- plot_results(df = iron_tte_cvd, freq_fit = freq_tte_cvd, bayes_fit = bayes_estimates[[4]], rr_or_hr = "HR")
+plot_tte_acm <- plot_results(df = iron_tte_acm, freq_fit = freq_tte_acm, bayes_fit = bayes_estimates[[5]], rr_or_hr = "HR")
 
-# ggsave(here::here("output/iron_abstract_plot.svg"), width = 6 , height = 9, units = "in")
-# ggsave(here::here("output/iron_abstract_data.svg"), width = 3 , height = 9, units = "in")
-# ggsave(here::here("output/iron_abstract_combined.svg"), width = 6, height = 9, units = "in")
-# ggsave(here::here("output/iron_abstract_combined.pdf"), width = 6 , height = 9, units = "in")
-ggsave(hr_plots[[8]], filename = here::here("output/iron_abstract_combined_tte.pdf"), width = 6 , height = 9, units = "in")
-ggsave(rr_plots[[8]], filename = here::here("output/iron_abstract_combined.pdf"), width = 6 , height = 9, units = "in")
-ggsave(rr_plots[[8]], filename = here::here("output/iron_abstract_combined.jpeg"), width = 820*0.5 , height = 1080*0.5, units = "px", scale = 2)
 
-# summarising a posterior -----------------------------------------------
-posterior_plot <- ranef_brms_0pt125 |> 
-  brms::as_draws_df(variable = "b_Intercept") |> 
-  mutate(avg_effect = exp(b_Intercept)) 
+ggsave(plot_rec_cnpt[[8]], filename = here::here("output/fig2a_forest_rec_cnpt.pdf"), width = 3, height = 4, units = "in")
+ggsave(plot_rec_hfh[[8]], filename = here::here("output/fig2b_forest_rec_hfh.pdf"), width = 3, height = 4, units = "in")
+ggsave(plot_tte_cnpt[[8]], filename = here::here("output/fig2c_forest_tte_cnpt.pdf"), width = 3, height = 4, units = "in")
+ggsave(plot_tte_cvd[[8]], filename = here::here("output/fig2d_forest_tte_cvd.pdf"), width = 3, height = 4, units = "in")
+ggsave(plot_tte_acm[[8]], filename = here::here("output/fig2e_forest_tte_acm.pdf"), width = 3, height = 4, units = "in")
 
-ggplot(posterior_plot, aes(x = avg_effect, fill = after_stat(x < 1))) + 
-  geom_vline(xintercept = 1 , lty = 3) +
-  stat_halfeye(color = NA) + 
-  scale_fill_manual(values = c("gray80", "dodgerblue")) +
-  labs(y = "", x = "Posterior distribution for average RR") +
-  ggthemes::theme_few() +
-  theme(
-    legend.position = "none",
-    axis.ticks.y = element_blank(),
-    axis.text.y = element_blank()
-    )
-ggsave(here::here("output/iron_abstract_posterior.svg"), width = 6, height = 9, units = "in")
+# for abstract submission
+#ggsave(plot_rec_cnpt[[8]], filename = here::here("output/iron_abstract_combined.jpeg"), width = 820*0.5 , height = 1080*0.5, units = "px", scale = 2)
 
-summ_thresholds <- function(threshold){
-  posterior_plot |> 
-    mutate(p_thresh = avg_effect < threshold) |> 
-    count(p_thresh) |> 
-    mutate(total = sum(n),
-           prop = n*100/total)
-}
 
-summ_thresholds(1) ## 98.8
-summ_thresholds(0.9) ## 81.9
-summ_thresholds(0.85) ## 55.7
+cowplot::plot_grid(
+  plot_rec_cnpt[[9]], 
+  plot_rec_hfh[[9]],
+  plot_tte_cnpt[[9]],
+  plot_tte_cvd[[9]],
+  plot_tte_acm[[9]],
+  labels = levels(all_iron_estimates$outcome), label_size = 8, hjust = -0.1
+) 
+ggsave(filename = here::here("output/fig2_all_forest.pdf"), width = 12, height = 7, units = "in")
 
-log(c(1, 0.9, 0.85))
-hypothesis(ranef_brms_0pt125, "Intercept < 0")
-hypothesis(ranef_brms_0pt125, "Intercept < -0.1053605")
-hypothesis(ranef_brms_0pt125, "Intercept < -0.1625189")
 
-hypothesis(ranef_brms_0pt5, "Intercept < 0")
-hypothesis(ranef_brms_0pt5, "Intercept < -0.1053605")
-hypothesis(ranef_brms_0pt5, "Intercept < -0.1625189")
 
-#  forest plot of 0.125 model ---------------------------------------------
+# exploring tau -----------------------------------------------------------
 new_trial <- data.frame(trial="new_study", sd = 1e100)
 
 forestplot_bayesmeta <- function(brms_object, fillcol, rawdata = iron_data){
@@ -381,48 +318,48 @@ forestplot_bayesmeta <- function(brms_object, fillcol, rawdata = iron_data){
   out_r <- spread_draws(brms_object, r_trial[trial,term], b_Intercept) |> 
     mutate(b_Intercept = r_trial + b_Intercept) 
   
-  # Average effect
+  # Pooled effect
   out_f <- spread_draws(brms_object, b_Intercept) |> 
-    mutate(trial = "Average")
+    mutate(trial = "Pooled")
   
   # Predicted effect in a new study 
   out_predict <- posterior_linpred(brms_object,
-                                        newdata = new_trial,
-                                        # apply inverse link function
-                                        transform = FALSE, 
-                                        # allows new studies
-                                        allow_new_levels = TRUE,
-                                        # and samples these according to the model
-                                        sample_new_levels = "gaussian"
-                                        ) |> 
+                                   newdata = new_trial,
+                                   # apply inverse link function
+                                   transform = FALSE, 
+                                   # allows new studies
+                                   allow_new_levels = TRUE,
+                                   # and samples these according to the model
+                                   sample_new_levels = "gaussian"
+  ) |> 
     as.data.frame() |> 
     rename(b_Intercept = V1) |> 
     mutate(trial = "Predicted")
   
-  # Combine average and study-specific effects' data frames
+  # Combine Pooled and study-specific effects' data frames
   out_all <- bind_rows(out_r, out_f, out_predict) |> 
     ungroup() |>
     mutate(b_Intercept = exp(b_Intercept)) |> 
-    # Ensure that Average effect is on the bottom of the forest plot
+    # Ensure that Pooled effect is on the bottom of the forest plot
     mutate(trial = str_replace_all(trial, "\\.", " ")) |> 
     # tidybayes garbles names so fix here
-    mutate(trial = factor(trial, levels  = c("Predicted", "Average", "HEART-FID", "IRONMAN", "AFFIRM-AHF", "CONFIRM-HF"))) 
+    mutate(trial = factor(trial, levels  = c("Predicted", "Pooled", "HEART-FID", "IRONMAN", "AFFIRM-AHF", "CONFIRM-HF"))) 
   
   # Data frame of summary numbers
   out_all_sum <- group_by(out_all, trial) |> 
     mean_qi(b_Intercept)
   
   # Draw plot
-  out_all |>   
+  out_all |> 
     ggplot(aes(b_Intercept, trial)) +
-    # average
-    geom_vline(xintercept = pull(out_all_sum[out_all_sum$trial == "Average", "b_Intercept"]), size = 0.7, lty = 1) +
+    # Pooled
+    geom_vline(xintercept = pull(out_all_sum[out_all_sum$trial == "Pooled", "b_Intercept"]), size = 0.7, lty = 1) +
     # Zero
     geom_vline(xintercept = 1, linewidth = .25, lty = 2) +
     stat_halfeye(.width = c(.8, .95), fill = fillcol) +
     # Add text labels
     geom_text(
-      data = mutate_if(out_all_sum, is.numeric, round, 2),
+      data = mutate_if(out_all_sum, is.numeric, round, 2), 
       aes(label = str_glue("{b_Intercept} [{.lower}, {.upper}]"), x = 1.15),
       hjust = 0,
       position = position_nudge(y = .2)
@@ -438,115 +375,12 @@ forestplot_bayesmeta <- function(brms_object, fillcol, rawdata = iron_data){
 }
 
 pal_cols <- ggsci::pal_jama("default")(3)
-fp1 <- forestplot_bayesmeta(ranef_brms_0pt5, fillcol = pal_cols[1], rawdata = iron_data) + labs(title = bquote(tau ~ scale == 0.5))
-fp2 <- forestplot_bayesmeta(ranef_brms_0pt125, fillcol = pal_cols[2], rawdata = iron_data)  + labs(title = bquote(tau ~ scale == 0.125))
-fp3 <- forestplot_bayesmeta(ranef_brms_0pt05, fillcol = pal_cols[3], rawdata = iron_data)  + labs(title = bquote(tau ~ scale == 0.05))
+fp1 <- forestplot_bayesmeta(bayesian_fits[[1]]$ranef_brms_0pt5, fillcol = pal_cols[1], rawdata = iron_rec_cnpt) + labs(title = bquote(tau ~ scale == 0.5))
+fp2 <- forestplot_bayesmeta(bayesian_fits[[1]]$ranef_brms_0pt125, fillcol = pal_cols[2], rawdata = iron_rec_cnpt)  + labs(title = bquote(tau ~ scale == 0.125))
+fp3 <- forestplot_bayesmeta(bayesian_fits[[1]]$ranef_brms_0pt05, fillcol = pal_cols[3], rawdata = iron_rec_cnpt)  + labs(title = bquote(tau ~ scale == 0.05))
 
 plot_grid(
   fp1, fp2, fp3, ncol = 3
 )
-ggsave(here::here("output/iron_tau_forestplots.pdf"), width = 14, height = 4, units = "in")
+ggsave(here::here("output/fig3_iron_tau_forestplots.pdf"), width = 14, height = 4, units = "in")
 
-# Get the BMJ palette with 3 colors
-pal_cols <- ggsci::pal_bmj("default")(3)
-tte_fp1 <- forestplot_bayesmeta(tte_ranef_brms_0pt5, fillcol = pal_cols[1], rawdata = iron_tte) + labs(title = bquote(tau ~ scale == 0.5), x = "HR")
-tte_fp2 <- forestplot_bayesmeta(tte_ranef_brms_0pt125, fillcol = pal_cols[2], rawdata = iron_tte)  + labs(title = bquote(tau ~ scale == 0.125), x = "HR")
-tte_fp3 <- forestplot_bayesmeta(tte_ranef_brms_0pt05, fillcol = pal_cols[3], rawdata = iron_tte)  + labs(title = bquote(tau ~ scale == 0.05), x = "HR")
-
-plot_grid(
-  tte_fp1, tte_fp2, tte_fp3, ncol = 3
-) 
-ggsave(here::here("output/iron_tau_forestplots_tte.pdf"), width = 14, height = 4, units = "in")
-
-
-# prediuction of new study  -----------------------------------------------
-predictions_draws <- function(brms_object, tauval){
-  set.seed(1341)
-  post_map_mc_brms <- posterior_linpred(brms_object,
-                                        newdata=data.frame(trial="new_study", sd = 1e100),
-                                        # apply inverse link function
-                                        transform = FALSE, 
-                                        # allows new studies
-                                        allow_new_levels = TRUE,
-                                        # and samples these according to the model
-                                        sample_new_levels = "gaussian"
-  )
-  
-  confirm_post_pred <- posterior_linpred(brms_object,
-                                        newdata = iron_data,
-                                        # apply inverse link function
-                                        transform = FALSE, 
-                                        # allows new studies
-                                        allow_new_levels = FALSE
-  )
-  bind_rows(
-    posterior::summarize_draws(exp(post_map_mc_brms), ~quantile(.x, probs = c(0.025, 0.5, 0.975))),
-    posterior::summarize_draws(exp(confirm_post_pred), ~quantile(.x, probs = c(0.025, 0.5, 0.975)))
-  ) |> 
-    mutate(
-      newtrial = c("average", levels(iron_data$trial))
-    )
-}
-
-bayes_pred <- bind_rows(
-  predictions_draws(ranef_brms_0pt5),
-  predictions_draws(ranef_brms_0pt125),
-  predictions_draws(ranef_brms_0pt05)
-  ) |> 
-  mutate(tau = factor(rep(c(0.5, 0.125, 0.05), each = 5))) |> 
-  janitor::clean_names() |> 
-  select(tau, everything()) |> 
-  select(-variable) |> 
-  gt::gt() |>
-  gt::fmt_number(decimals = 2) 
-
-bayes_pred
-bayes_pred |> 
-  gt::gtsave(filename = here::here("output/new_trial_predictions.html"))
-
-
-# plot_priors -------------------------------------------------------------
-bind_rows(
-  parse_dist(prior(normal(0, 0.5), class="sd", lb = 0, group="trial")),
-  parse_dist(prior(normal(0, 0.125), class="sd", lb = 0, group="trial")),
-  parse_dist(prior(normal(0, 0.05), class="sd", lb = 0, group="trial"))
-) |> 
-  mutate(tau = factor(c(0.5, 0.125, 0.05))) |> 
-  ggplot(aes(y = tau, dist = .dist, args = .args)) + 
-  stat_dist_halfeye() +
-  xlim(c(0, NA)) +
-  ggthemes::theme_few()
-
-ggsave(here("output/tau_scale_priors.pdf"), width = 6, height = 4)
-
-
-set.seed(241)
-color <- scales::viridis_pal(option = "C")(7)[6]
-
-plot_draws <- function(brms_object, tauval){
-  as_draws_df(brms_object) |> 
-    select(b_Intercept:sd_trial__Intercept) |> 
-    janitor::clean_names() |> 
-    mutate(
-      `effect size` = rnorm(n(), mean = b_intercept, sd = sd_trial_intercept) |> exp()
-      ) |> 
-    sample_n(1e3) |>  
-    #
-    ggplot(aes(x = `effect size`, y = 0)) +
-    geom_dots(color = color, fill = color) +
-    scale_y_continuous(NULL, breaks = NULL) +
-    xlab(expression(Normal(mu*', '*tau))) +
-    scale_x_continuous(limits = c(0.25, 4), breaks = c(0.5, 1.0, 2, 3, 4), transform = "log") +
-    labs(title = bquote(tau ~ scale == .(tauval))) +
-    theme(text = element_text(family = "Times"),
-          strip.background = element_rect(color = "transparent")) +
-    ggthemes::theme_few()
-}
-
-
-cowplot::plot_grid(
-  plot_draws(ranef_brms_0pt5, 0.5),
-  plot_draws(ranef_brms_0pt125, 0.125),
-  plot_draws(ranef_brms_0pt05, 0.05),
-  ncol = 1
-)
