@@ -56,7 +56,8 @@ iron_rec_cnpt <- make_iron_data(
   estimate = c(0.51, 0.76, 0.96, 0.82),
   lci = c(0.28, 0.60, 0.82, 0.66),
   uci = c(0.95, 0.96, 1.11, 1.02)
-)
+) |> 
+  mutate(outcome = "Total HFH and CV death")
 iron_rec_cnpt
 
 # time to first: HFH or CV death ------------------------------------------
@@ -65,7 +66,8 @@ iron_tte_cnpt <- make_iron_data(
   uci = c(0.95, 0.98, 1.02, 1.06),
   lci = c(0.30, 0.66, 0.70, 0.81),
   heartfid96ci = TRUE
-)
+) |> 
+  mutate(outcome = "Time to CV death or HFH")
 
 # time to CV death --------------------------------------------------------
 iron_tte_cvd <- make_iron_data(
@@ -73,18 +75,21 @@ iron_tte_cvd <- make_iron_data(
   lci = c(0.42, 0.70, 0.67, 0.72),
   uci = c(2.16, 1.32, 1.10, 1.03),
   heartfid96ci = TRUE
-)
+) |> 
+  mutate(outcome = "Time to CV death")
 
 # total HFH ---------------------------------------------------------------
 iron_rec_hfh <- make_iron_data(
   estimate = c(0.33, 0.74, 0.80, 0.90),
   lci = c(0.15, 0.58, 0.62, 0.74),
   uci = c(0.76, 0.94, 1.03, 1.10)
-)
+) |> 
+  mutate(outcome = "Total HFH")
 
 # Time to all-cause death -------------------------------------------------
 iron_tte_acm <- make_iron_data(
   estimate = c(0.89, NA, 0.95, 0.82),
   lci = c(0.41, NA, 0.78, 0.65),
   uci = c(1.93, NA, 1.17, 1.05)
-)
+) |> 
+  mutate(outcome = "Time to death")
