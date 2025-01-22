@@ -252,39 +252,73 @@ bind_rows(
   ggplot(aes(y = tau, dist = .dist, args = .args)) + 
   stat_dist_halfeye(size = 0.2, col = NA) +
   xlim(c(0, NA)) +
-  labs(x = "", y = bquote(tau ~ scale ~ prior)) +
+  labs(x = "", y = bquote(tau[sigma] ~ prior)) +
   ggthemes::theme_few(base_size = 7) +
   theme(axis.title.y = element_text(angle = 0, vjust = 0.5))
 
 ggsave(here("output/fig6_tau_scale_priors.pdf"), width = 3, height = 2)
 
 # dot_plot of predictions -------------------------------------------------
-set.seed(241)
 color <- scales::viridis_pal(option = "C")(7)[6]
 
-plot_draws <- function(brms_object, tauval){
-  as_draws_df(brms_object) |> 
-    select(b_Intercept:sd_trial__Intercept) |> 
+plot_draws <- function(brms_object, tauval, sd_newstudy){
+  set.seed(241)
+  post_draws <- as_draws_df(brms_object) |> 
+    rowwise() |> 
+    mutate(sd_hf = sd(c(`r_trial[IRONMAN,Intercept]`, `r_trial[HEART-FID,Intercept]`))) |> 
+    select(b_Intercept:sd_trial__Intercept, sd_hf) |>
     janitor::clean_names() |> 
     mutate(
-      `effect size` = rnorm(n(), mean = b_intercept, sd = sd_trial_intercept) |> exp()
-    ) |> 
+      theta_j = rnorm(n(), mean = b_intercept, sd = sd_trial_intercept),
+      theta_j_hf = rnorm(n(), mean = b_intercept, sd = sd_hf),
+      `effect size` = rnorm(n(), theta_j_hf, sd = sd_newstudy) |> exp()
+    )
+  
+  post_summ <- post_draws |> 
+    median_qi(`effect size`) |> 
+    mutate(across(where(is.numeric), ~formatC(.x, digits = 2, width = 3, format = "f", flag = "0"))) |> 
+    mutate(
+      result = paste0(`effect size`, " (", .lower, ", ", .upper, ")")
+    )
+    
+  post_draws |>  
+    ungroup() |> 
     sample_n(1e3) |>  
     #
     ggplot(aes(x = `effect size`, y = 0)) +
     geom_dots(color = color, fill = color) +
+    geom_text(data = post_summ, aes(x = 1.5, y = 0.6, label = result)) +
     scale_y_continuous(NULL, breaks = NULL) +
     xlab(expression(Normal(mu*', '*tau))) +
-    scale_x_continuous(limits = c(0.25, 4), breaks = c(0.5, 1.0, 2, 3, 4), transform = "log") +
-    labs(title = bquote(tau ~ scale == .(tauval))) +
+    scale_x_continuous(limits = c(0.4, 2.5), breaks = c(0.5, 0.8, 1.0, 1.25, 2), transform = "log") +
+    labs(title = bquote(tau[sigma] == .(tauval))) +
     theme(text = element_text(family = "Times"),
           strip.background = element_rect(color = "transparent")) +
     ggthemes::theme_few()
 }
 
 cowplot::plot_grid(
-  plot_draws(bayes_rec_cnpt$ranef_brms_0pt5, 0.5),
-  plot_draws(bayes_rec_cnpt$ranef_brms_0pt125, 0.125),
-  plot_draws(bayes_rec_cnpt$ranef_brms_0pt05, 0.05),
+  plot_draws(bayes_rec_cnpt$ranef_brms_0pt5, 0.5, sd_newstudy = 0.1),
+  plot_draws(bayes_rec_cnpt$ranef_brms_0pt125, 0.125, sd_newstudy = 0.1),
+  plot_draws(bayes_rec_cnpt$ranef_brms_0pt05, 0.05, sd_newstudy = 0.1),
   ncol = 1
 )
+
+
+
+
+posterior_linpred(
+  bayes_rec_cnpt$ranef_brms_0pt125,
+  newdata = data.frame(
+      lrr = 1,
+    sd = 0.0001,
+    se = 0.1,
+    trial = "test"
+  ) ,
+  allow_new_levels = TRUE, transform = TRUE,
+  sample_new_levels = "gaussian"
+) |> median_qi() |> mutate(across(starts_with("y"), exp))
+
+posterior_linpred(bayes_rec_cnpt$ranef_brms_0pt125, newdata = data.frame(lrr = 1, sd = 1, trial = "test") , allow_new_levels = TRUE) |> median_qi() |> mutate(across(starts_with("y"), exp))
+posterior_linpred(bayes_rec_cnpt$ranef_brms_0pt05, newdata = data.frame(lrr = 1, sd = 1, trial = "test") , allow_new_levels = TRUE) |> median_qi() |> mutate(across(starts_with("y"), exp))
+
