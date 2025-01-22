@@ -20,10 +20,12 @@ trial_size <- data.frame(
     c("CONFIRM-HF", "AFFIRM-AHF", "HEART-FID", "IRONMAN"),
     levels = c("CONFIRM-HF", "AFFIRM-AHF", "IRONMAN", "HEART-FID")
   ),
-  n_trt = c(152, 567, 1532, 569),
-  n_placebo = c(152, 565, 1533, 568),
-  n = c(304, 1132, 3065, 1137)
-)
+  n_trt = c(150, 558, 1529, 569),
+  n_placebo = c(151, 550, 1532, 568)
+) |> 
+  mutate(
+    n = n_trt + n_placebo
+  )
 
 
 # write function to save time  --------------------------------------------
