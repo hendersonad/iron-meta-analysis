@@ -16,6 +16,9 @@ library(brms)
 library(scales)
 library(ggsci)
 
+
+fs::dir_create(here("output"))
+
 source(here::here("iron_data.R"))
 iron_rec_cnpt |> select(starts_with("n")) |> summarise(across(everything(), sum))
 
@@ -323,8 +326,7 @@ ggsave(plot_tte_cvd[[8]], filename = here::here("output/fig2d_forest_tte_cvd.pdf
 ggsave(plot_tte_acm[[8]], filename = here::here("output/fig2e_forest_tte_acm.pdf"), width = 3, height = 4, units = "in")
 
 # for abstract submission
-#ggsave(plot_rec_cnpt[[8]], filename = here::here("output/iron_abstract_combined.jpeg"), width = 820*0.5 , height = 1080*0.5, units = "px", scale = 2)
-
+ggsave(plot_rec_cnpt[[8]], filename = here::here("output/iron_abstract_combined.jpeg"), width = 820*0.5 , height = 1080*0.5, units = "px", scale = 2)
 
 cowplot::plot_grid(
   plot_rec_cnpt[[9]], 
@@ -424,6 +426,10 @@ bayes_gt |>
 # exploring predictions with different tau  -------------------------------
 new_trial <- data.frame(trial="newstudy", sd = 1e100)
 
+num_to_printchar <- function(x){
+  formatC(x, digits = 2, width = 3 , flag = 0, format = "f", big.mark = ",")
+}
+
 forestplot_bayesmeta <- function(brms_object, fillcol, rawdata = iron_data){
   set.seed(1342)
   
@@ -511,5 +517,5 @@ plot_grid(
   fp1, fp2, fp3, ncol = 3
 )
 ggsave(here::here("output/fig3_iron_tau_forestplots.pdf"), width = 14, height = 4.5, units = "in")
- iron_rec_cnpt
+iron_rec_cnpt
  
