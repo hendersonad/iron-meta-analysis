@@ -17,9 +17,10 @@ library(scales)
 library(ggsci)
 
 
-fs::dir_create(here("output"))
+fs::dir_create(here("output/fairhf2"))
+fs::dir_create(here("brmsfits/fairhf2"))
 
-source(here::here("iron_data.R"))
+source(here::here("iron_data_fairhf2.R"))
 iron_rec_cnpt |> select(starts_with("n")) |> summarise(across(everything(), sum))
 
 # plot the estimates ------------------------------------------------------
@@ -53,9 +54,9 @@ all_estimates <- ggplot(all_iron_estimates, aes(x = estimate, xmin = lci, xmax =
         plot.title.position = "plot",
         strip.text = element_text(hjust = 0))
 
-ggsave(all_estimates, filename = here::here("output/fig1_trial_estimates.pdf"), width = 9  , height = 4, units = "in")
-ggsave(all_estimates, filename = here::here("output/fig1_trial_estimates.svg"), width = 9  , height = 4, units = "in")
-ggsave(all_estimates, filename = here::here("output/fig1_trial_estimates.jpeg"), width = 9 , height = 4, units = "in")
+ggsave(all_estimates, filename = here::here("output/fairhf2/fig1_trial_estimates.pdf"), width = 9  , height = 4, units = "in")
+ggsave(all_estimates, filename = here::here("output/fairhf2/fig1_trial_estimates.svg"), width = 9  , height = 4, units = "in")
+ggsave(all_estimates, filename = here::here("output/fairhf2/fig1_trial_estimates.jpeg"), width = 9 , height = 4, units = "in")
 
 # Frequentist meta analyses -----------------------------------------------
 do_frequentist_style <- function(
@@ -73,7 +74,7 @@ do_frequentist_style <- function(
     sm = label
   )
   
-  filename = here::here("output", paste0("frequentist_meta_", deparse(substitute(input_data)), ".pdf"))
+  filename = here::here("output/fairhf2", paste0("frequentist_meta_", deparse(substitute(input_data)), ".pdf"))
   
   pdf(file = filename, width = 9 , height = 7)
     meta::forest(
@@ -95,9 +96,42 @@ freq_tte_cnpt <- do_frequentist_style(iron_tte_cnpt, label = "HR")
 freq_tte_cvd <- do_frequentist_style(iron_tte_cvd, label = "HR")
 freq_tte_acm <- do_frequentist_style(iron_tte_acm, label = "HR")
 
+# funnel plot  ------------------------------------------------------------
+
+# Plot
+funnel_data <- all_iron_estimates |> 
+  mutate(
+    reff_est = case_when(
+      outcome == "Total HFH and CV death" ~ freq_rec_cnpt$TE.fixed,
+      outcome == "Total HFH" ~ freq_rec_hfh$TE.fixed,
+      outcome == "Time to CV death or HFH" ~ freq_tte_cnpt$TE.fixed,
+      outcome == "Time to CV death" ~ freq_tte_cvd$TE.fixed,
+      outcome == "Time to death" ~ freq_tte_acm$TE.fixed
+    )
+  ) |> 
+  mutate(logeff = log(estimate)) 
+
+funnel_plot <- funnel_data |> 
+  ggplot(aes(y = sd, x = logeff, fill = outcome, colour = outcome)) +
+  ggokabeito::scale_color_okabe_ito() +
+  ggokabeito::scale_fill_okabe_ito() +
+  geom_point(size = 2, pch = 21, alpha = 0.6) +
+  geom_segment(aes(x = 0, y = 0, xend = 0, yend = sd), lty = 1, col = "#33333350") +
+  geom_segment(aes(x = reff_est, y = 0, xend = reff_est, yend = sd), lty = 2) +
+  geom_segment(aes(x = reff_est, y = 0, xend = reff_est + sd * 1.96, yend = sd), lty = 2) +
+  geom_segment(aes(x = reff_est, y = 0, xend = reff_est - (sd * 1.96), yend = sd), lty = 2) +
+  #geom_text(aes(label = trial), col = 1, vjust = "inward", hjust = "inward", check_overlap = TRUE, size = 6, size.unit = "pt") +
+  ggrepel::geom_text_repel(aes(label = trial), col = 1, size = 2) +
+  scale_y_reverse() +
+  facet_wrap(~outcome, ncol = 1, scales = "free_y") + 
+  ggthemes::theme_few(base_size = 9.5) +
+  labs(y = "Std. Err.", x = "(log) effect estimate (RR/HR)", colour = "") + 
+  theme(legend.position = "none")
+funnel_plot
+ggsave(funnel_plot, filename = here("output/fig4_funnelplot.pdf"), width = 5, height = 7)
+
 # Bayesian meta analyses with brms --------------------------------------------------
 ## random effects
-fs::dir_create(here("brmsfits"))
 
 do_ranef_brms <- function(dataset = iron_data, tauprior = 0.5, savename = "temp"){
     random_model <- brms::bf(lrr | se(sd) ~ 1 + (1 | trial), family=gaussian)
@@ -106,7 +140,7 @@ do_ranef_brms <- function(dataset = iron_data, tauprior = 0.5, savename = "temp"
     prior(normal(0, tauprior), class="sd", lb = 0, group="trial")
   stanvars <- stanvar(tauprior, name = "tauprior")
   
-  fit_name <- paste0("brmsfits/", savename, "_", tauprior)
+  fit_name <- paste0("brmsfits/fairhf2/", savename, "_", tauprior)
   brm(
     random_model,
     dataset,
@@ -312,7 +346,6 @@ plot_results <- function(df, freq_fit, bayes_fit, rr_or_hr){
   return(list(panel_a, a, panel_b, b, panel_c, c, abstract, plot_combined, just_the_pooled_numbers))
 }
 plot_rec_cnpt <- plot_results(df = iron_rec_cnpt, freq_fit = freq_rec_cnpt, bayes_fit = bayes_estimates[[1]]$bayes_est, rr_or_hr = "RR")
-plot_rec_cnpt[[8]]
 plot_rec_cnpt[[9]]
 plot_rec_hfh <- plot_results(df = iron_rec_hfh, freq_fit = freq_rec_hfh, bayes_fit = bayes_estimates[[2]]$bayes_est, rr_or_hr = "RR")
 plot_tte_cnpt <- plot_results(df = iron_tte_cnpt, freq_fit = freq_tte_cnpt, bayes_fit = bayes_estimates[[3]]$bayes_est, rr_or_hr = "HR")
@@ -320,14 +353,14 @@ plot_tte_cvd <- plot_results(df = iron_tte_cvd, freq_fit = freq_tte_cvd, bayes_f
 plot_tte_acm <- plot_results(df = iron_tte_acm, freq_fit = freq_tte_acm, bayes_fit = bayes_estimates[[5]]$bayes_est, rr_or_hr = "HR")
 
 
-ggsave(plot_rec_cnpt[[8]], filename = here::here("output/fig2a_forest_rec_cnpt.pdf"), width = 3, height = 4, units = "in")
-ggsave(plot_rec_hfh[[8]], filename = here::here("output/fig2b_forest_rec_hfh.pdf"), width = 3, height = 4, units = "in")
-ggsave(plot_tte_cnpt[[8]], filename = here::here("output/fig2c_forest_tte_cnpt.pdf"), width = 3, height = 4, units = "in")
-ggsave(plot_tte_cvd[[8]], filename = here::here("output/fig2d_forest_tte_cvd.pdf"), width = 3, height = 4, units = "in")
-ggsave(plot_tte_acm[[8]], filename = here::here("output/fig2e_forest_tte_acm.pdf"), width = 3, height = 4, units = "in")
+ggsave(plot_rec_cnpt[[8]], filename = here::here("output/fairhf2/fig2a_forest_rec_cnpt.pdf"), width = 3, height = 4, units = "in")
+ggsave(plot_rec_hfh[[8]], filename = here::here("output/fairhf2/fig2b_forest_rec_hfh.pdf"), width = 3, height = 4, units = "in")
+ggsave(plot_tte_cnpt[[8]], filename = here::here("output/fairhf2/fig2c_forest_tte_cnpt.pdf"), width = 3, height = 4, units = "in")
+ggsave(plot_tte_cvd[[8]], filename = here::here("output/fairhf2/fig2d_forest_tte_cvd.pdf"), width = 3, height = 4, units = "in")
+ggsave(plot_tte_acm[[8]], filename = here::here("output/fairhf2/fig2e_forest_tte_acm.pdf"), width = 3, height = 4, units = "in")
 
 # for abstract submission
-ggsave(plot_rec_cnpt[[8]], filename = here::here("output/iron_abstract_combined.jpeg"), width = 820*0.5 , height = 1080*0.5, units = "px", scale = 2)
+ggsave(plot_rec_cnpt[[8]], filename = here::here("output/fairhf2/iron_abstract_combined.jpeg"), width = 820*0.5 , height = 1080*0.5, units = "px", scale = 2)
 
 cowplot::plot_grid(
   plot_rec_cnpt[[9]], 
@@ -335,9 +368,9 @@ cowplot::plot_grid(
   plot_tte_cnpt[[9]],
   plot_tte_cvd[[9]],
   plot_tte_acm[[9]],
-  labels = levels(all_iron_estimates$outcome), label_size = 8, hjust = -0.1, align = "v"
+  labels = levels(all_iron_estimates$outcome), label_size = 8, hjust = -0.1
 ) 
-ggsave(filename = here::here("output/fig2_all_forest.pdf"), width = 12, height = 7, units = "in")
+ggsave(filename = here::here("output/fairhf2/fig2_all_forest.pdf"), width = 12, height = 7, units = "in")
 
 
 
@@ -422,7 +455,7 @@ bayes_gt <- bayes_results_table |>
   gt::gt()
 
 bayes_gt |> 
-  gt::gtsave(here::here("output/table2_bayesian_results.docx"))
+  gt::gtsave(here::here("output/fairhf2/table2_bayesian_results.docx"))
 
 # exploring predictions with different tau  -------------------------------
 new_trial <- data.frame(trial="newstudy", sd = 1e100)
@@ -517,5 +550,5 @@ fp3 <- forestplot_bayesmeta(bayesian_fits[[1]]$ranef_brms_0pt05, fillcol = pal_c
 plot_grid(
   fp1, fp2, fp3, ncol = 3
 )
-ggsave(here::here("output/fig3_iron_tau_forestplots.pdf"), width = 14, height = 4.5, units = "in")
+ggsave(here::here("output/fairhf2/fig3_iron_tau_forestplots.pdf"), width = 14, height = 4.5, units = "in")
 iron_rec_cnpt

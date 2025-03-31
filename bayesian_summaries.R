@@ -17,15 +17,20 @@ library(purrr)
 
 source(here::here("iron_data.R"))
 
+load_brms_fits <- function(input_data){
+  name <- stringr::str_replace_all(stringr::str_to_lower(input_data$outcome[1]), " ", "_")
+  fit_name <- paste0("brmsfits/fairhf2/", name, "_0.125.rds")
+  fit <- readRDS(fit_name)
+}
 datasets <- list(
   iron_rec_cnpt, iron_rec_hfh, iron_tte_cnpt, iron_tte_cvd, iron_tte_acm
 )
-bayesian_fits <- purrr::map(datasets, .f = do_bayesian_taus)
+
+bayesian_fits <- purrr::map(datasets, .f = load_brms_fits)
 
 # summarising a posterior -----------------------------------------------
-
 get_bayes_trt_effects <- function(brmsobj){
-  filename <- brmsobj$ranef_brms_0pt125$file
+  filename <- brmsobj$file
   outcome_name <- stringr::str_remove_all(
     filename, "_0.125.rds"
   ) |> 
@@ -33,7 +38,7 @@ get_bayes_trt_effects <- function(brmsobj){
       "brmsfits/"
     )
   
-  brmsobj$ranef_brms_0pt125 |> 
+  brmsobj |> 
     brms::as_draws_df(variable = "b_Intercept") |> 
     mutate(
       avg_effect = exp(b_Intercept),
@@ -79,14 +84,14 @@ avg_effects <- all_bayes_trt_effects |>
 
 
 get_bayes_post_prob <- function(brmsobj){
-  filename <- brmsobj$ranef_brms_0pt125$file
+  filename <- brmsobj$file
   outcome_name <- stringr::str_remove_all(
     filename, "_0.125.rds"
   ) |> 
     stringr::str_remove_all(
       "brmsfits/"
     )
-  brms::hypothesis(brmsobj$ranef_brms_0pt125, c("Intercept < 0", "Intercept < -0.1053605"))$hypothesis |> 
+  brms::hypothesis(brmsobj, c("Intercept < 0", "Intercept < -0.1053605"))$hypothesis |> 
     mutate(outcome = factor(
       outcome_name,
       levels = c(
@@ -136,7 +141,7 @@ ggplot(all_bayes_trt_effects, aes(x = avg_effect, y =forcats::fct_rev(outcome), 
     legend.position = "none",
     axis.text.y = element_text(hjust = 0)
   )
-ggsave(here::here("output/fig4_iron_bayesian_trt_effects.pdf"), width = 4, height = 4, units = "in")
+ggsave(here::here("output/fairhf2/fig4_iron_bayesian_trt_effects.pdf"), width = 4, height = 4, units = "in")
 
 
 
