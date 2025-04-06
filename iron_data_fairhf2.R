@@ -17,11 +17,11 @@ library(dplyr)
 #  trial N  ---------------------------------------------------------------
 trial_size <- data.frame(
   trial = factor(
-    c("CONFIRM-HF", "AFFIRM-AHF", "HEART-FID", "IRONMAN", "FAIR-HF2"),
-    levels = c("CONFIRM-HF", "AFFIRM-AHF", "IRONMAN", "HEART-FID", "FAIR-HF2")
+    c("FAIR-HF", "CONFIRM-HF", "AFFIRM-AHF", "HEART-FID", "IRONMAN", "FAIR-HF2"),
+    levels = c("FAIR-HF", "CONFIRM-HF", "AFFIRM-AHF", "IRONMAN", "HEART-FID", "FAIR-HF2")
   ),
-  n_trt = c(150, 558, 1529, 569, 558),
-  n_placebo = c(151, 550, 1532, 568, 547)
+  n_trt = c(305, 150, 558, 1529, 569, 558),
+  n_placebo = c(154, 151, 550, 1532, 568, 547)
 ) |> 
   mutate(
     n = n_trt + n_placebo
@@ -33,8 +33,8 @@ sum(trial_size$n_placebo)
 make_iron_data <- function(estimate, lci, uci, heartfid96ci = FALSE){
   irondf <- data.frame(
     trial = factor(
-      c("CONFIRM-HF", "AFFIRM-AHF", "HEART-FID", "IRONMAN", "FAIR-HF2"),
-      levels = c("CONFIRM-HF", "AFFIRM-AHF", "IRONMAN", "HEART-FID", "FAIR-HF2")
+      c("FAIR-HF", "CONFIRM-HF", "AFFIRM-AHF", "HEART-FID", "IRONMAN", "FAIR-HF2"),
+      levels = c("FAIR-HF", "CONFIRM-HF", "AFFIRM-AHF", "IRONMAN", "HEART-FID", "FAIR-HF2")
     ),
     estimate = estimate,
     lci = lci,
@@ -56,43 +56,43 @@ make_iron_data <- function(estimate, lci, uci, heartfid96ci = FALSE){
 
 # Recurrent HFH and CV death ----------------------------------------------
 iron_rec_cnpt <- make_iron_data(
-  estimate = c(0.51, 0.76, 0.96, 0.82, 0.80),
-  lci = c(0.28, 0.60, 0.82, 0.66, 0.62),
-  uci = c(0.95, 0.96, 1.11, 1.02, 1.04)
+  estimate = c(0.46, 0.51, 0.76, 0.96, 0.82, 0.80),
+  lci = c(0.18, 0.28, 0.60, 0.82, 0.66, 0.62),
+  uci = c(1.19, 0.95, 0.96, 1.11, 1.02, 1.04)
 ) |> 
   mutate(outcome = "Total HFH and CV death")
 iron_rec_cnpt
 
 # time to first: HFH or CV death ------------------------------------------
 iron_tte_cnpt <- make_iron_data(
-  estimate = c(0.53, 0.80, 0.84, 0.93, 0.79),
-  lci = c(0.30, 0.66, 0.70, 0.81, 0.63),
-  uci = c(0.95, 0.98, 1.02, 1.06, 0.99),
+  estimate = c(NA, 0.53, 0.80, 0.84, 0.93, 0.79),
+  lci = c(NA, 0.30, 0.66, 0.70, 0.81, 0.63),
+  uci = c(NA, 0.95, 0.98, 1.02, 1.06, 0.99),
   heartfid96ci = TRUE
 ) |> 
   mutate(outcome = "Time to CV death or HFH")
 
 # time to CV death --------------------------------------------------------
 iron_tte_cvd <- make_iron_data(
-  estimate = c(0.96, 0.96, 0.86, 0.86, 0.80),
-  lci = c(0.42, 0.70, 0.67, 0.72, 0.55),
-  uci = c(2.16, 1.32, 1.10, 1.03, 1.14),
+  estimate = c(0.62, 0.96, 0.96, 0.86, 0.86, 0.80),
+  lci = c(0.17, 0.42, 0.70, 0.67, 0.72, 0.55),
+  uci = c(2.30, 2.16, 1.32, 1.10, 1.03, 1.14),
   heartfid96ci = TRUE
 ) |> 
   mutate(outcome = "Time to CV death")
 
 # total HFH ---------------------------------------------------------------
 iron_rec_hfh <- make_iron_data(
-  estimate = c(0.33, 0.74, 0.80, 0.90, 0.80),
-  lci = c(0.15, 0.58, 0.62, 0.74, 0.60),
-  uci = c(0.76, 0.94, 1.03, 1.10, 1.06)
+  estimate = c(0.44, 0.33, 0.74, 0.80, 0.90, 0.80),
+  lci = c(0.13, 0.15, 0.58, 0.62, 0.74, 0.60),
+  uci = c(1.44, 0.76, 0.94, 1.03, 1.10, 1.06)
 ) |> 
   mutate(outcome = "Total HFH")
 
 # Time to all-cause death -------------------------------------------------
 iron_tte_acm <- make_iron_data(
-  estimate = c(0.89, NA, 0.95, 0.82, 0.94),
-  lci = c(0.41, NA, 0.78, 0.65, 0.72),
-  uci = c(1.93, NA, 1.17, 1.05, 1.24)
+  estimate = c(0.62, 0.89, 0.99, 0.95, 0.82, 0.94),
+  lci = c(0.17, 0.41, 0.75, 0.78, 0.65, 0.72),
+  uci = c(2.30, 1.93, 1.31, 1.17, 1.05, 1.24)
 ) |> 
   mutate(outcome = "Time to death")
