@@ -15,7 +15,7 @@ library(scales)
 library(ggsci)
 library(purrr)
 
-source(here::here("iron_data.R"))
+source(here::here("iron_data_fairhf2.R"))
 
 load_brms_fits <- function(input_data){
   name <- stringr::str_replace_all(stringr::str_to_lower(input_data$outcome[1]), " ", "_")
@@ -35,7 +35,7 @@ get_bayes_trt_effects <- function(brmsobj){
     filename, "_0.125.rds"
   ) |> 
     stringr::str_remove_all(
-      "brmsfits/"
+      "brmsfits/fairhf2/"
     )
   
   brmsobj |> 
@@ -64,8 +64,8 @@ get_bayes_trt_effects <- function(brmsobj){
 all_bayes_trt_effects <- map(bayesian_fits, get_bayes_trt_effects) |>
   bind_rows() 
 
-num_to_printchar <- function(number){
-  formatC(number, width = 3, format = "f", digits = 2, flag = "0")
+num_to_printchar <- function(number, ndig = 2){
+  formatC(number, width = 3, format = "f", digits = ndig, flag = "0")
 }
 
 avg_effects <- all_bayes_trt_effects |> 
@@ -89,9 +89,17 @@ get_bayes_post_prob <- function(brmsobj){
     filename, "_0.125.rds"
   ) |> 
     stringr::str_remove_all(
-      "brmsfits/"
+      "brmsfits/fairhf2/"
     )
-  brms::hypothesis(brmsobj, c("Intercept < 0", "Intercept < -0.1053605"))$hypothesis |> 
+  
+  brms::hypothesis(
+    brmsobj, 
+    c(
+      "Intercept > 0",
+      "Intercept < 0", 
+      "Intercept < -0.1053605",
+      "Intercept < -0.2231436"
+      ))$hypothesis |> 
     mutate(outcome = factor(
       outcome_name,
       levels = c(
@@ -119,20 +127,28 @@ post_probs <- map(
   bind_rows() |> 
   janitor::clean_names() |> 
   mutate(hypothesis = case_when(
-    hypothesis == "(Intercept) < 0" ~ "Prob.<1.0",
-    hypothesis == "(Intercept)-(-0.1053605) < 0" ~ "Prob.<0.9"
+    hypothesis == "(Intercept) > 0" ~ "P(RR)>1.0",
+    hypothesis == "(Intercept) < 0" ~ "P(RR)<1.0",
+    hypothesis == "(Intercept)-(-0.1053605) < 0" ~ "P(RR)<0.9",
+    hypothesis == "(Intercept)-(-0.2231436) < 0" ~ "P(RR)<0.8"
     ),
-    nice_p = ifelse(num_to_printchar(post_prob) == "1.00", "> 0.99", paste("=", num_to_printchar(post_prob))),
+    nice_p = case_when(
+      (num_to_printchar(post_prob, ndig = 3) == "1.00" ~ "> 99.999%"), 
+      .default = paste("=", num_to_printchar(post_prob*100, ndig = 1))),
     nice_lab = paste0(hypothesis, " ", nice_p, star)
   )
 post_probs
 
 ggplot(all_bayes_trt_effects, aes(x = avg_effect, y =forcats::fct_rev(outcome), fill = after_stat(x < 1))) + 
-  geom_vline(xintercept = 1, lty = 1, alpha = 0.8) +
+  geom_vline(xintercept = 1, lty = 3, alpha = 0.5) +
   stat_halfeye(color = "gray30") + 
   geom_text(data = avg_effects, aes(label = nice_est, x = 1.3), nudge_y = 0.5, size.unit = "pt", size = 7, hjust = 0) +
-  geom_text(data = filter(post_probs, hypothesis == "Prob.<1.0"), aes(label = nice_lab, x = 1.3), nudge_y = 0.25, size.unit = "pt", size = 7, hjust = 0) +
-  geom_text(data = filter(post_probs, hypothesis == "Prob.<0.9"), aes(label = nice_lab, x = 1.3), nudge_y = 0, size.unit = "pt", size = 7, hjust = 0) +
+  #
+  geom_text(data = filter(post_probs, hypothesis == "P(RR)>1.0"), aes(label = nice_lab, x = 1.3), nudge_y = 0.3, size.unit = "pt", size = 7, hjust = 0) +
+  geom_text(data = filter(post_probs, hypothesis == "P(RR)<1.0"), aes(label = nice_lab, x = 1.3), nudge_y = 0.1, size.unit = "pt", size = 7, hjust = 0) +
+  geom_text(data = filter(post_probs, hypothesis == "P(RR)<0.9"), aes(label = nice_lab, x = 0.9), nudge_y = -0.1, size.unit = "pt", size = 7, hjust = 0) +
+  geom_text(data = filter(post_probs, hypothesis == "P(RR)<0.8"), aes(label = nice_lab, x = 0.85), nudge_y = -0.1, size.unit = "pt", size = 7, hjust = 1) +
+  #
   scale_x_continuous(limits = c(0.49, 2), breaks = c(0.5, 0.8, 1.0, 1.25), transform = "log") +
   scale_fill_manual(values = c("gray70", "dodgerblue")) +
   labs(y = "", x = "Posterior distribution for average RR/HR", caption = bquote(tau ~ scale ~ prior == 0.125)) +
@@ -142,7 +158,6 @@ ggplot(all_bayes_trt_effects, aes(x = avg_effect, y =forcats::fct_rev(outcome), 
     axis.text.y = element_text(hjust = 0)
   )
 ggsave(here::here("output/fairhf2/fig4_iron_bayesian_trt_effects.pdf"), width = 4, height = 4, units = "in")
-
 
 
 # prediuction of new study  -----------------------------------------------
