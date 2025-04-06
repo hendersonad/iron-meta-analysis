@@ -47,7 +47,7 @@ all_estimates <- ggplot(all_iron_estimates, aes(x = estimate, xmin = lci, xmax =
   geom_text(aes(label = formatC(estimate, format = "f", width = 3, flag = "0", digits = 2), x = estimate), nudge_y = 0.2, size = 7, size.unit = "pt") + 
   geom_point(size = 1.5, pch = 16) +
   facet_wrap(~outcome, ncol = 3) +
-  scale_x_continuous(limits = c(0.149, 2.5), breaks = c(0.5, 1.0, 2.0), transform = "log") +
+  scale_x_continuous(limits = c(0.125, 2.5), breaks = c(0.5, 1.0, 2.0), transform = "log") +
   labs(y = "", x = "RR/HR*", caption = "* RR for recurrent events, HR for time to first") +
   ggthemes::theme_few(base_size = 7) +
   theme(plot.title = element_text(hjust = 0, face = "bold"),
@@ -148,6 +148,7 @@ do_ranef_brms <- function(dataset = iron_data, tauprior = 0.5, savename = "temp"
     stanvars = stanvars,
     cores = 4,
     chains = 4, 
+    parallel_chains = 4, 
     control = list(adapt_delta = 0.999),
     iter = 4000, 
     warmup = 2000, 
@@ -171,7 +172,11 @@ do_bayesian_taus <- function(input_data){
   ))
 }
 datasets <- list(
-  iron_rec_cnpt, iron_rec_hfh, iron_tte_cnpt, iron_tte_cvd, iron_tte_acm
+  iron_rec_cnpt,
+  iron_rec_hfh,
+  iron_tte_cnpt,
+  iron_tte_cvd,
+  iron_tte_acm
 )
 bayesian_fits <- purrr::map(datasets, .f = do_bayesian_taus)
 
@@ -347,6 +352,7 @@ plot_results <- function(df, freq_fit, bayes_fit, rr_or_hr){
 }
 plot_rec_cnpt <- plot_results(df = iron_rec_cnpt, freq_fit = freq_rec_cnpt, bayes_fit = bayes_estimates[[1]]$bayes_est, rr_or_hr = "RR")
 plot_rec_cnpt[[9]]
+plot_rec_cnpt[[8]]
 plot_rec_hfh <- plot_results(df = iron_rec_hfh, freq_fit = freq_rec_hfh, bayes_fit = bayes_estimates[[2]]$bayes_est, rr_or_hr = "RR")
 plot_tte_cnpt <- plot_results(df = iron_tte_cnpt, freq_fit = freq_tte_cnpt, bayes_fit = bayes_estimates[[3]]$bayes_est, rr_or_hr = "HR")
 plot_tte_cvd <- plot_results(df = iron_tte_cvd, freq_fit = freq_tte_cvd, bayes_fit = bayes_estimates[[4]]$bayes_est, rr_or_hr = "HR")
@@ -360,7 +366,7 @@ ggsave(plot_tte_cvd[[8]], filename = here::here("output/fairhf2/fig2d_forest_tte
 ggsave(plot_tte_acm[[8]], filename = here::here("output/fairhf2/fig2e_forest_tte_acm.pdf"), width = 3, height = 4, units = "in")
 
 # for abstract submission
-ggsave(plot_rec_cnpt[[8]], filename = here::here("output/fairhf2/iron_abstract_combined.jpeg"), width = 820*0.5 , height = 1080*0.5, units = "px", scale = 2)
+ggsave(plot_rec_cnpt[[8]], filename = here::here("output/fairhf2/iron_abstract_combined_bigchronictrials.jpeg"), width = 820*0.5 , height = 1080*0.5, units = "px", scale = 2)
 
 cowplot::plot_grid(
   plot_rec_cnpt[[9]], 
@@ -497,7 +503,7 @@ forestplot_bayesmeta <- function(brms_object, fillcol, rawdata = iron_data){
     # Ensure that Pooled effect is on the bottom of the forest plot
     mutate(trial = str_replace_all(trial, "\\.", " ")) |> 
     # tidybayes garbles names so fix here
-    mutate(trial = factor(trial, levels  = c("Predicted", "Pooled", "FAIR-HF2", "HEART-FID", "IRONMAN", "AFFIRM-AHF", "CONFIRM-HF"))) 
+    mutate(trial = factor(trial, levels  = c("Predicted", "Pooled", "FAIR-HF2", "HEART-FID", "IRONMAN", "AFFIRM-AHF", "CONFIRM-HF", "FAIR-HF"))) 
   
   # Data frame of summary numbers
   out_all_sum <- group_by(out_all, trial) |> 
