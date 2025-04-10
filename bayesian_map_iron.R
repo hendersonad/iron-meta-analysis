@@ -24,16 +24,12 @@ iron_rec_cnpt |> select(starts_with("n")) |> summarise(across(everything(), sum)
 
 # plot the estimates ------------------------------------------------------
 all_iron_estimates <- bind_rows(
-  iron_rec_cnpt, iron_rec_hfh, iron_tte_cnpt, iron_tte_cvd, iron_tte_acm
+  iron_rec_cnpt
   ) |>
   mutate(outcome = factor(
     outcome, 
     levels = c(
-      "Total HFH and CV death",
-      "Total HFH",
-      "Time to CV death or HFH",
-      "Time to CV death",
-      "Time to death"
+      "Total HFH and CV death"
       )
     )
     )
@@ -88,10 +84,6 @@ do_frequentist_style <- function(
 }
 
 freq_rec_cnpt <- do_frequentist_style(iron_rec_cnpt, label = "RR")
-freq_rec_hfh <- do_frequentist_style(iron_rec_hfh, label = "RR")
-freq_tte_cnpt <- do_frequentist_style(iron_tte_cnpt, label = "HR")
-freq_tte_cvd <- do_frequentist_style(iron_tte_cvd, label = "HR")
-freq_tte_acm <- do_frequentist_style(iron_tte_acm, label = "HR")
 
 # Bayesian meta analyses with brms --------------------------------------------------
 ## random effects
@@ -135,15 +127,11 @@ do_bayesian_taus <- function(input_data){
   ))
 }
 datasets <- list(
-  iron_rec_cnpt, iron_rec_hfh, iron_tte_cnpt, iron_tte_cvd, iron_tte_acm
+  iron_rec_cnpt
 )
 bayesian_fits <- purrr::map(datasets, .f = do_bayesian_taus)
 
 bayes_rec_cnpt <- bayesian_fits[[1]]
-bayes_rec_hfh <- bayesian_fits[[2]]
-bayes_tte_cnpt <- bayesian_fits[[3]]
-bayes_tte_cvd <- bayesian_fits[[4]]
-bayes_tte_acm <- bayesian_fits[[5]]
 
 # combine the brms estimates ----------------------------------------------
 combine_brms_out <- function(model_list){
@@ -312,32 +300,17 @@ plot_results <- function(df, freq_fit, bayes_fit, rr_or_hr){
 plot_rec_cnpt <- plot_results(df = iron_rec_cnpt, freq_fit = freq_rec_cnpt, bayes_fit = bayes_estimates[[1]]$bayes_est, rr_or_hr = "RR")
 plot_rec_cnpt[[8]]
 plot_rec_cnpt[[9]]
-plot_rec_hfh <- plot_results(df = iron_rec_hfh, freq_fit = freq_rec_hfh, bayes_fit = bayes_estimates[[2]]$bayes_est, rr_or_hr = "RR")
-plot_tte_cnpt <- plot_results(df = iron_tte_cnpt, freq_fit = freq_tte_cnpt, bayes_fit = bayes_estimates[[3]]$bayes_est, rr_or_hr = "HR")
-plot_tte_cvd <- plot_results(df = iron_tte_cvd, freq_fit = freq_tte_cvd, bayes_fit = bayes_estimates[[4]]$bayes_est, rr_or_hr = "HR")
-plot_tte_acm <- plot_results(df = iron_tte_acm, freq_fit = freq_tte_acm, bayes_fit = bayes_estimates[[5]]$bayes_est, rr_or_hr = "HR")
-
 
 ggsave(plot_rec_cnpt[[8]], filename = here::here("output/fig2a_forest_rec_cnpt.pdf"), width = 3, height = 4, units = "in")
-ggsave(plot_rec_hfh[[8]], filename = here::here("output/fig2b_forest_rec_hfh.pdf"), width = 3, height = 4, units = "in")
-ggsave(plot_tte_cnpt[[8]], filename = here::here("output/fig2c_forest_tte_cnpt.pdf"), width = 3, height = 4, units = "in")
-ggsave(plot_tte_cvd[[8]], filename = here::here("output/fig2d_forest_tte_cvd.pdf"), width = 3, height = 4, units = "in")
-ggsave(plot_tte_acm[[8]], filename = here::here("output/fig2e_forest_tte_acm.pdf"), width = 3, height = 4, units = "in")
 
 # for abstract submission
 ggsave(plot_rec_cnpt[[8]], filename = here::here("output/iron_abstract_combined.jpeg"), width = 820*0.5 , height = 1080*0.5, units = "px", scale = 2)
 
 cowplot::plot_grid(
   plot_rec_cnpt[[9]], 
-  plot_rec_hfh[[9]],
-  plot_tte_cnpt[[9]],
-  plot_tte_cvd[[9]],
-  plot_tte_acm[[9]],
   labels = levels(all_iron_estimates$outcome), label_size = 8, hjust = -0.1, align = "v"
 ) 
 ggsave(filename = here::here("output/fig2_all_forest.pdf"), width = 12, height = 7, units = "in")
-
-
 
 # summarising tau estimates -----------------------------------------------
 number_to_character_output <- function(df){
@@ -399,7 +372,7 @@ all_freq_results <- function(freq_fit){
     )
 }
 
-freq_summ <- purrr::map(list(freq_rec_cnpt, freq_rec_hfh, freq_tte_cnpt, freq_tte_cvd, freq_tte_acm), all_freq_results) |> 
+freq_summ <- purrr::map(list(freq_rec_cnpt), all_freq_results) |> 
   bind_rows() |> 
   janitor::clean_names() |> 
   rename(tau = lab, trt_effect = summ_2, tau_estimate = summ_3) |> 
