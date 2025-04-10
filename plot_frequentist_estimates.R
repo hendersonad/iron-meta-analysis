@@ -42,21 +42,21 @@ all_iron_estimates <- bind_rows(
 all_estimates <- ggplot(all_iron_estimates, aes(x = estimate, xmin = lci, xmax = uci, y = fct_rev(trial), group = trial)) +
   geom_vline(xintercept = 1, lty = 1, alpha = 0.1) +
   geom_linerange() +
-  geom_text(aes(label = formatC(lci, format = "f", width = 3, flag = "0", digits = 2), x = lci), nudge_y = -0.2, size = 7, size.unit = "pt") + 
-  geom_text(aes(label = formatC(uci, format = "f", width = 3, flag = "0", digits = 2), x = uci), nudge_y = -0.2, size = 7, size.unit = "pt") + 
-  geom_text(aes(label = formatC(estimate, format = "f", width = 3, flag = "0", digits = 2), x = estimate), nudge_y = 0.2, size = 7, size.unit = "pt") +
+  geom_text(aes(label = formatC(lci, format = "f", width = 3, flag = "0", digits = 2), x = lci), nudge_y = -0.3, size = 7, size.unit = "pt") + 
+  geom_text(aes(label = formatC(uci, format = "f", width = 3, flag = "0", digits = 2), x = uci), nudge_y = -0.3, size = 7, size.unit = "pt") + 
+  geom_text(aes(label = formatC(estimate, format = "f", width = 3, flag = "0", digits = 2), x = estimate), nudge_y = 0.3, size = 7, size.unit = "pt") +
   geom_point(size = 1.5, pch = 16) +
-  facet_wrap(~outcome, ncol = 3) +
+  facet_wrap(~outcome, ncol = 2) +
   scale_x_continuous(limits = c(0.125, 2.5), breaks = c(0.5, 1.0, 2.0), transform = "log") +
   labs(y = "", x = "RR/HR*", caption = "* RR for recurrent events, HR for time to first") +
-  ggthemes::theme_few(base_size = 7) +
+  ggthemes::theme_few(base_size = 9) +
   theme(plot.title = element_text(hjust = 0, face = "bold"),
         plot.title.position = "plot",
         strip.text = element_text(hjust = 0))
 
 all_estimates
 
-ggsave(all_estimates, filename = here::here("output/fairhf2/fig1_trial_estimates.pdf"), width = 9  , height = 4, units = "in")
+ggsave(all_estimates, filename = here::here("output/fairhf2/fig1_trial_estimates.pdf"), width = 8 , height = 6, units = "in")
 
 ## 
 segment_map <- all_estimates + 
@@ -70,11 +70,7 @@ segment_map <- all_estimates +
     col = "#CC79A7"
   ) +
   geom_segment(
-    aes(x = 0.1, xend = 0.1, y = 1.5, yend = 3.5),
-    col = "#999999"
-  ) +
-  geom_segment(
-    aes(x = 0.1, xend = 0.1, y = 4.5, yend = 5.5),
+    aes(x = 0.1, xend = 0.1, y = 0.5, yend = 3.5),
     col = "#999999"
   )
 ggsave(segment_map, filename = here::here("output/fairhf2/fig1_trial_estimates_segments.pdf"), width = 9.5  , height = 4, units = "in")
@@ -88,7 +84,7 @@ sets_iron_estimates <- all_iron_estimates |>
     ),
     set2 = TRUE,
     set3 = case_when(
-      trial %in% c("CONFIRM-HF", "IRONMAN", "HEART-FID") ~ TRUE
+      trial %in% c("FAIR-HF2", "IRONMAN", "HEART-FID") ~ TRUE
     ),
   )
 all_estimates %+% mutate(sets_iron_estimates, across(where(is.numeric), ~case_when(set1 ~ .x, .default = NA)))
@@ -101,6 +97,3 @@ all_estimates %+% mutate(sets_iron_estimates, across(where(is.numeric), ~case_wh
 ggsave(filename = here::here("output/fairhf2/fig1_trial_estimates_set3.pdf"), width = 9  , height = 4, units = "in")
 
   
-
-
-
