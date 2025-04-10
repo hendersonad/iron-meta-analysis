@@ -54,8 +54,6 @@ all_estimates <- ggplot(all_iron_estimates, aes(x = estimate, xmin = lci, xmax =
         strip.text = element_text(hjust = 0))
 
 ggsave(all_estimates, filename = here::here("output/fig1_trial_estimates.pdf"), width = 9  , height = 4, units = "in")
-ggsave(all_estimates, filename = here::here("output/fig1_trial_estimates.svg"), width = 9  , height = 4, units = "in")
-ggsave(all_estimates, filename = here::here("output/fig1_trial_estimates.jpeg"), width = 9 , height = 4, units = "in")
 
 # Frequentist meta analyses -----------------------------------------------
 do_frequentist_style <- function(
@@ -464,7 +462,7 @@ forestplot_bayesmeta <- function(brms_object, fillcol, rawdata = iron_data){
     # Ensure that Pooled effect is on the bottom of the forest plot
     mutate(trial = str_replace_all(trial, "\\.", " ")) |> 
     # tidybayes garbles names so fix here
-    mutate(trial = factor(trial, levels  = c("Predicted", "Pooled", "FAIR-HF2", "HEART-FID", "IRONMAN", "AFFIRM-AHF", "CONFIRM-HF"))) 
+    mutate(trial = factor(trial, levels  = c("Predicted", "Pooled", "HEART-FID", "IRONMAN", "AFFIRM-AHF", "CONFIRM-HF"))) 
   
   # Data frame of summary numbers
   out_all_sum <- group_by(out_all, trial) |> 
@@ -480,7 +478,7 @@ forestplot_bayesmeta <- function(brms_object, fillcol, rawdata = iron_data){
   out_all |> 
     ggplot(aes(b_Intercept, trial)) +
     # Pooled
-    geom_vline(xintercept = pull(out_all_sum[out_all_sum$trial == "Pooled", "b_Intercept"]), size = 0.7, lty = 1) +
+    geom_vline(xintercept = pull(out_all_sum[out_all_sum$trial == "Pooled", "b_Intercept"]), linewidth = 0.7, lty = 1) +
     # Zero
     geom_vline(xintercept = 1, linewidth = .25, lty = 2) +
     stat_dots(data = ~filter(.x, trial == "Predicted"), col = fillcol, fill = fillcol) +
@@ -519,3 +517,112 @@ plot_grid(
 )
 ggsave(here::here("output/fig3_iron_tau_forestplots.pdf"), width = 14, height = 4.5, units = "in")
 iron_rec_cnpt
+
+
+# focus on predictions and tau 0.125 --------------------------------------
+brms_object <- bayesian_fits[[1]]$ranef_brms_0pt125
+fillcol <- pal_cols[2]
+
+set.seed(1342)
+
+# Study-specific effects are deviations + average
+out_r <- spread_draws(brms_object, r_trial[trial,term], b_Intercept) |> 
+  mutate(b_Intercept = r_trial + b_Intercept) 
+
+# Pooled effect
+out_f <- spread_draws(brms_object, b_Intercept) |> 
+  mutate(trial = "Pooled")
+
+# Predicted effect in 100 new studiess
+out_predict <- posterior_linpred(brms_object,
+                                 newdata = new_trial,
+                                 # apply inverse link function
+                                 transform = FALSE, 
+                                 # allows new studies
+                                 allow_new_levels = TRUE,
+                                 # and samples these according to the model
+                                 sample_new_levels = "gaussian",
+                                 ndraws = 1000
+) |> 
+  as.data.frame() |> 
+  rename(b_Intercept = V1) |> 
+  mutate(trial = "Predicted")
+
+dummy_fairhf2 <- slice(out_predict, 1) |> 
+  mutate(trial = "FAIR-HF2", b_Intercept = NA)
+
+# Combine Pooled and study-specific effects' data frames
+out_all <- bind_rows(out_r, out_f, out_predict, dummy_fairhf2) |> 
+  ungroup() |>
+  mutate(b_Intercept = exp(b_Intercept)) |> 
+  # Ensure that Pooled effect is on the bottom of the forest plot
+  mutate(trial = str_replace_all(trial, "\\.", " ")) |> 
+  # tidybayes garbles names so fix here
+  mutate(trial = factor(trial, levels  = c("FAIR-HF2", "Predicted", "Pooled", "HEART-FID", "IRONMAN", "AFFIRM-AHF", "CONFIRM-HF"))) 
+
+# Data frame of summary numbers
+out_all_sum <- group_by(out_all, trial) |> 
+  median_qi(b_Intercept)
+
+out_all_sum[out_all_sum$trial == "FAIR-HF2", 2] <- 0.80
+out_all_sum[out_all_sum$trial == "FAIR-HF2", 3] <- 0.62
+out_all_sum[out_all_sum$trial == "FAIR-HF2", 4] <- 1.04
+
+# Add predictive probability of RR < 1
+post_pred_prob <- out_predict |> 
+  mutate(rr_lt_1 = b_Intercept < 0) |> 
+  summarise(post_pred_prob = round(100*sum(rr_lt_1)/n(), 0)) |> 
+  mutate(trial = "Predicted")
+
+# Add FAIR-HF2 results
+fairhf2 <- data.frame(
+  trial = "FAIR-HF2", 
+  est = 0.80, 
+  lci = 0.62, 
+  uci = 1.04
+)
+
+# Draw plot
+pooled_avg <- pull(out_all_sum[out_all_sum$trial == "Pooled", "b_Intercept"])
+out_all |> 
+  ggplot(aes(x = b_Intercept, y = trial)) +
+  # Zero
+  geom_vline(xintercept = 1, linewidth = .25, lty = 2) +
+  stat_halfeye(
+    data = ~mutate(.x, b_Intercept = ifelse(trial == "Predicted", NA, b_Intercept)), 
+    .width = c(.8, .95), fill = fillcol) +
+  stat_dots(
+    data = ~filter(.x, trial == "Predicted"), 
+    col = fillcol, fill = fillcol) +
+  # Add text labels
+  geom_text(
+    data = mutate(out_all_sum, across(where(is.numeric), num_to_printchar)) |> 
+      filter(trial != "FAIR-HF2"), 
+    aes(label = str_glue("{b_Intercept} ({.lower}, {.upper})"), x = 1.15),
+    hjust = 0,
+    position = position_nudge(y = .4)
+  ) +
+  geom_text(
+    data = mutate(out_all_sum, across(where(is.numeric), num_to_printchar)) |> 
+      filter(trial == "FAIR-HF2"), 
+    aes(label = str_glue("{b_Intercept} ({.lower}, {.upper})"), x = 1.15),
+    hjust = 0,
+    position = position_nudge(y = 0)
+  ) +
+  # Observed as empty points
+  geom_pointrange(
+    data = iron_rec_cnpt |> mutate(trial = str_replace_all(trial, "\\.", " ")), 
+    aes(xmin=lci, x = estimate, xmax = uci), position = position_nudge(y = -.2), 
+    shape = 1, linetype = "dashed", size = 0.4
+  )  +
+  # add FAIR-HF2
+  geom_pointrange(
+    data = fairhf2, 
+    aes(xmin=lci, x = est, xmax = uci), 
+    shape = 21, linetype = "solid", size = 1
+  ) + 
+  scale_x_continuous(limits = c(0.25, 2), breaks = c(0.8, 1.0, 1.25), transform = "log") +
+  labs(x = "RR", y = "") +
+  ggthemes::theme_few()
+
+ggsave(here::here("output/fig3_iron_tau_prediction_comparison.pdf"), width = 6, height = 4.5, units = "in")
