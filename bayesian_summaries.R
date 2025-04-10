@@ -135,7 +135,7 @@ post_probs <- map(
     nice_p = case_when(
       (num_to_printchar(post_prob, ndig = 3) == "1.00" ~ "> 99.999%"), 
       .default = paste("=", num_to_printchar(post_prob*100, ndig = 1))),
-    nice_lab = paste0(hypothesis, " ", nice_p, star)
+    nice_lab = paste0(hypothesis, " ", nice_p)
   )
 post_probs
 
@@ -144,20 +144,20 @@ ggplot(all_bayes_trt_effects, aes(x = avg_effect, y =forcats::fct_rev(outcome), 
   stat_halfeye(color = "gray30") + 
   geom_text(data = avg_effects, aes(label = nice_est, x = 1.3), nudge_y = 0.5, size.unit = "pt", size = 7, hjust = 0) +
   #
-  geom_text(data = filter(post_probs, hypothesis == "P(RR)>1.0"), aes(label = nice_lab, x = 1.3), nudge_y = 0.3, size.unit = "pt", size = 7, hjust = 0) +
-  geom_text(data = filter(post_probs, hypothesis == "P(RR)<1.0"), aes(label = nice_lab, x = 1.3), nudge_y = 0.1, size.unit = "pt", size = 7, hjust = 0) +
-  geom_text(data = filter(post_probs, hypothesis == "P(RR)<0.9"), aes(label = nice_lab, x = 0.9), nudge_y = -0.1, size.unit = "pt", size = 7, hjust = 0) +
-  geom_text(data = filter(post_probs, hypothesis == "P(RR)<0.8"), aes(label = nice_lab, x = 0.85), nudge_y = -0.1, size.unit = "pt", size = 7, hjust = 1) +
+  geom_label(fill = "white", col = 1, data = filter(post_probs, hypothesis == "P(RR)>1.0"), aes(label = nice_lab, x = 1.3), nudge_y = 0.3, size.unit = "pt", size = 7, hjust = 0) +
+  geom_label(fill = "white", col = 1, data = filter(post_probs, hypothesis == "P(RR)<1.0"), aes(label = nice_lab, x = 1.3), nudge_y = 0.1, size.unit = "pt", size = 7, hjust = 0) +
+  geom_label(fill = "white", col = 1, data = filter(post_probs, hypothesis == "P(RR)<0.9"), aes(label = nice_lab, x = 0.9), nudge_y = -0.1, size.unit = "pt", size = 7, hjust = 0) +
+  geom_label(fill = "white", col = 1, data = filter(post_probs, hypothesis == "P(RR)<0.8"), aes(label = nice_lab, x = 0.85), nudge_y = -0.1, size.unit = "pt", size = 7, hjust = 1) +
   #
-  scale_x_continuous(limits = c(0.49, 2), breaks = c(0.5, 0.8, 1.0, 1.25), transform = "log") +
+  scale_x_continuous(limits = c(0.49, 2), breaks = c(0.8, 1.0, 1.25), transform = "log") +
   scale_fill_manual(values = c("gray70", "dodgerblue")) +
   labs(y = "", x = "Posterior distribution for average RR/HR", caption = bquote(tau ~ scale ~ prior == 0.125)) +
-  ggthemes::theme_few(base_size = 7) +
+  ggthemes::theme_few(base_size = 9) +
   theme(
     legend.position = "none",
     axis.text.y = element_text(hjust = 0)
   )
-ggsave(here::here("output/fairhf2/fig4_iron_bayesian_trt_effects.pdf"), width = 4, height = 4, units = "in")
+ggsave(here::here("output/fairhf2/fig4_iron_bayesian_trt_effects.pdf"), width = 6, height = 6, units = "in")
 
 
 # prediuction of new study  -----------------------------------------------
