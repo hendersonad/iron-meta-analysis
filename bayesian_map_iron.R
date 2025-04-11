@@ -563,7 +563,7 @@ out_all |>
   geom_vline(xintercept = 1, linewidth = .25, lty = 2) +
   stat_halfeye(
     data = ~mutate(.x, b_Intercept = ifelse(trial == "Predicted", NA, b_Intercept)), 
-    .width = c(.8, .95), fill = fillcol) +
+    .width = c(0), fill = fillcol) +
   stat_dots(
     data = ~filter(.x, trial == "Predicted"), 
     col = fillcol, fill = fillcol) +
@@ -594,7 +594,7 @@ out_all |>
     aes(xmin=lci, x = est, xmax = uci), 
     shape = 21, linetype = "solid", size = 1
   ) + 
-  scale_x_continuous(limits = c(0.25, 2), breaks = c(0.8, 1.0, 1.25), transform = "log") +
+  scale_x_continuous(limits = c(0.25, 2), breaks = c(0.5,0.8, 1.0, 1.25), transform = "log") +
   labs(x = "RR", y = "") +
   ggthemes::theme_few()
 
