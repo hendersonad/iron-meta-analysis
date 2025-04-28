@@ -2,6 +2,7 @@ library(brms)
 library(marginaleffects)
 library(tidyverse)
 library(tidybayes)
+library(here)
 
 theme_set(
   ggthemes::theme_few(base_size = 9) +
@@ -17,7 +18,7 @@ theme_set(
 #' HEART-FID: 971/1533, median 2.7 years. Rate for total HFH was 12, Rate of CVD was 8.2 (NEJM) so ~ 21
 97100/(1533*3) # 20.2
 #' FAIR-HF2: 393/547 efigure 5 NA curves. Rate for total HFH was 33 with 320 events so total fup was
-fairhf2_fup <- 320/33 * 100
+fairhf2_fup <- (320/33*100)
 # so a total rate of 40
 393/fairhf2_fup
 
@@ -27,12 +28,12 @@ controlrates <- data.frame(
     c("FAIR-HF", "CONFIRM-HF", "AFFIRM-AHF", "IRONMAN", "HEART-FID", "FAIR-HF2"),
     levels = c("FAIR-HF", "CONFIRM-HF", "AFFIRM-AHF", "IRONMAN", "HEART-FID", "FAIR-HF2")
   ),
-  rates = c(8, 29, 72, 27, 20, 40),
+  rates = c(8, 29, 73, 28, 21, 41),
   n = c(154, 151, 550, 568, 1532, 547)
 )
 
 modelcontrolrates <- brm(
-  brms::bf(rates ~ 1 + (1 | study), family=poisson),
+  brms::bf(rates ~ 1 + (1 | study), family=poisson()),
   controlrates,
   prior = prior(uniform(-2, 2), class="Intercept", lb = -2, ub = 2) +
     prior(normal(0, 0.125), class="sd", lb = 0, group="study"), 
@@ -46,7 +47,7 @@ modelcontrolrates <- brm(
   file_refit = "on_change",
   file = "brmsfits/fairhf2/controlrates"
 )
-
+pp_check(modelcontrolrates)
 pooled_control_rates <- marginaleffects::avg_predictions(
     modelcontrolrates, 
     type = "response",
@@ -57,9 +58,11 @@ estimated_control_rate <- pooled_control_rates |>
   get_draws() |> 
   pull(draw)
 
+median_qi(estimated_control_rate)
 pooled_est <- pooled_control_rates |> as_tibble() |> mutate(study = "Total", n = sum(controlrates$n))
-ghibli::ghibli_palettes
+#ghibli::ghibli_palettes
 colors <- ghibli::ghibli_palette("MononokeMedium", type = "discrete")[c(3, 5)]
+
 
 placebo_inputs <- plot_predictions(modelcontrolrates, by = "study", wts = "n", draw = FALSE) |> 
   bind_rows(pooled_est) |> 
@@ -113,18 +116,12 @@ placebo_inputs <- plot_predictions(modelcontrolrates, by = "study", wts = "n", d
 placebo_inputs
 ggsave(placebo_inputs,filename =  here("output/fairhf2/estimated_placebo_rates.pdf"), width = 6, height = 4)
 
-crudecontrol <- rnorm(1e4, mean = 25, sd = 2)
-par(mfrow=c(1,2))
-hist(crudecontrol)
-hist(estimated_control_rate)
-
+## load estimated pooled RR
 estimatedrr <- readRDS(here("brmsfits/fairhf2/total_hfh_and_cv_death_0.125.rds"))
 
 rrs <- as_draws_df(estimatedrr, "b_Intercept") |> 
   pull(b_Intercept) |> 
   exp()
-
-trt <- estimated_control_rate[1]*rrs[1]
 
 x <- map(rrs, function(x) x*estimated_control_rate) |> bind_cols() |> set_names(paste0("sim", 1:length(rrs))) |> bind_cols(estimated_control_rate)
 colnames(x)[length(rrs)+1] <- "controlrate"
@@ -133,21 +130,25 @@ ratediffs <- x |>
   tidyr::pivot_longer(starts_with("sim")) |> 
   mutate(ratediff = controlrate - value)
 
-median_qi(estimated_control_rate)
-median_qi(ratediffs$ratediff)
-median_qi(rrs)
+median_qi(estimated_control_rate) ## Placebo rate
+median_qi(ratediffs$value) ## IV iron rate
+median_qi(ratediffs$ratediff) # Rate difference
+median_qi(rrs) ## rate ratio
 
 set.seed(2134)
 ratediff_plot <- ratediffs |> 
-  sample_n(1e6) |> 
+  group_by(controlrate) |> 
+  sample_n(100) |> 
   select(-name, `Placebo` = controlrate, `IV iron` = value, `Rate difference` = ratediff) |> 
   pivot_longer(where(is.numeric)) |> 
+  mutate(name = factor(name, levels = c("Placebo", "IV iron", "Rate difference"))) |> 
   ggplot(aes(x = name, y = value, group = name, fill = name)) +
   geom_hline(yintercept = 0, lty = 3, col = "#999999") +
-  geom_violin() +
-  ggokabeito::scale_fill_okabe_ito(
-    order = c(1, 2, 3)
-  ) + 
+  geom_point(data = ~group_by(.x, name) |> slice(1), col = "white") +
+  geom_violin(data = ~filter(.x, name != "Placebo")) +
+  geom_violin(data = ~filter(.x, name == "Placebo") |> group_by(value) |> slice(1)) +
+  scale_x_discrete(breaks = c("Placebo", "IV iron", "Rate difference")) +
+  ggokabeito::scale_fill_okabe_ito() + 
   labs(
     title = "Estimated absolute benefit of IV iron",
     subtitle = "Estimated rate of CV death and HF hospitalisations in a placebo group, and a group\ntreated with IV iron calculated using the estimated RR from our Bayesian meta-analysis",
@@ -155,10 +156,10 @@ ratediff_plot <- ratediffs |>
     y = "Rate per 100 person-years",
     x = ""
   ) +
-  theme(legend.position = "top")
+  theme(legend.position = "none")
 ratediff_plot
 ggsave(ratediff_plot, filename = here("output/fairhf2/estimated_absolute_benefit.pdf"), width = 6, height = 4)
 
 cowplot::plot_grid(placebo_inputs, ratediff_plot, labels = "AUTO", ncol = 1)
 ggsave(filename = here("output/fairhf2/estimated_benefits_combined.pdf"), width = 5.5, height = 9)
-
+ci
