@@ -37,14 +37,14 @@ all_iron_estimates <- bind_rows(
 all_estimates <- ggplot(all_iron_estimates, aes(x = estimate, xmin = lci, xmax = uci, y = fct_rev(trial), group = trial)) +
   geom_vline(xintercept = 1, lty = 1, alpha = 0.1) +
   geom_linerange() +
-  geom_text(aes(label = formatC(lci, format = "f", width = 3, flag = "0", digits = 2), x = lci), nudge_y = -0.2, size = 7, size.unit = "pt") + 
-  geom_text(aes(label = formatC(uci, format = "f", width = 3, flag = "0", digits = 2), x = uci), nudge_y = -0.2, size = 7, size.unit = "pt") + 
-  geom_text(aes(label = formatC(estimate, format = "f", width = 3, flag = "0", digits = 2), x = estimate), nudge_y = 0.2, size = 7, size.unit = "pt") + 
+  geom_text(aes(label = formatC(lci, format = "f", width = 3, flag = "0", digits = 2), x = lci), nudge_y = -0.2, size = 9, size.unit = "pt") + 
+  geom_text(aes(label = formatC(uci, format = "f", width = 3, flag = "0", digits = 2), x = uci), nudge_y = -0.2, size = 9, size.unit = "pt") + 
+  geom_text(aes(label = formatC(estimate, format = "f", width = 3, flag = "0", digits = 2), x = estimate), nudge_y = 0.2, size = 9, size.unit = "pt") + 
   geom_point(size = 1.5, pch = 16) +
   facet_wrap(~outcome, ncol = 3) +
   scale_x_continuous(limits = c(0.149, 2.5), breaks = c(0.5, 1.0, 2.0), transform = "log") +
-  labs(y = "", x = "RR/HR*", caption = "* RR for recurrent events, HR for time to first") +
-  ggthemes::theme_few(base_size = 7) +
+  labs(y = "", x = "Rate Ratio (95% CI)") +
+  ggthemes::theme_few(base_size = 11) +
   theme(plot.title = element_text(hjust = 0, face = "bold"),
         plot.title.position = "plot",
         strip.text = element_text(hjust = 0))
@@ -492,9 +492,100 @@ ggsave(here::here("output/fig3_iron_tau_forestplots.pdf"), width = 14, height = 
 iron_rec_cnpt
 
 
+# plot the magnet ---------------------------------------------------------
+out_r <- spread_draws(bayesian_fits[[1]]$ranef_brms_0pt5, r_trial[trial,term], b_Intercept) |> 
+  mutate(b_Intercept = r_trial + b_Intercept, tau = "High") |> 
+  bind_rows(
+    spread_draws(bayesian_fits[[1]]$ranef_brms_0pt125, r_trial[trial,term], b_Intercept) |> 
+      mutate(b_Intercept = r_trial + b_Intercept, tau = "Moderate")
+  ) |> 
+  bind_rows(
+    spread_draws(bayesian_fits[[1]]$ranef_brms_0pt05, r_trial[trial,term], b_Intercept) |> 
+      mutate(b_Intercept = r_trial + b_Intercept, tau = "Low")
+  )
+  
+# Pooled effect
+out_f <- spread_draws(bayesian_fits[[1]]$ranef_brms_0pt5, b_Intercept) |> 
+  mutate(tau = "High") |> 
+  bind_rows(
+    spread_draws(bayesian_fits[[1]]$ranef_brms_0pt125, b_Intercept) |> 
+      mutate(tau = "Moderate")
+  ) |> 
+  bind_rows(
+    spread_draws(bayesian_fits[[1]]$ranef_brms_0pt05, b_Intercept) |> 
+      mutate(tau = "Low")
+  ) |> 
+  mutate(trial = "Pooled")
+
+
+# Combine Pooled and study-specific effects' data frames
+out_all <- bind_rows(out_r, out_f) |> 
+  ungroup() |>
+  mutate(b_Intercept = exp(b_Intercept)) |> 
+  # Ensure that Pooled effect is on the bottom of the forest plot
+  mutate(trial = str_replace_all(trial, "\\.", " ")) |> 
+  filter(trial != "HEART-FID") |> 
+  # tidybayes garbles names so fix here
+  mutate(trial = factor(
+    trial, 
+    levels  = c("Pooled", "CONFIRM-HF", "IRONMAN", "AFFIRM-AHF"),
+    labels  = c("Pooled", "Study 1", "Study 2", "Study 3"))) 
+
+# Data frame of summary numbers
+out_all_sum <- group_by(out_all, trial, tau) |> 
+  median_qi(b_Intercept) 
+
+tau_magnet_dta <- iron_rec_cnpt |> 
+  filter(trial != "HEART-FID") |> 
+  mutate(trial = factor(
+    trial, 
+    levels  = c("CONFIRM-HF", "IRONMAN", "AFFIRM-AHF"),
+    labels  = c("Study 1", "Study 2", "Study 3"))) 
+
+# Draw plot
+magnet_plot <- function(select_taus, palette){
+  out_all |> 
+    filter(tau %in% select_taus) |> 
+    ggplot(aes(b_Intercept, trial)) +
+    # Pooled
+    geom_vline(data = filter(out_all_sum, trial == "Pooled" & tau %in% select_taus), aes(colour = tau, xintercept = b_Intercept), linewidth = 0.7, lty = 1) +
+    # Zero
+    geom_vline(xintercept = 1, linewidth = .25, lty = 2) +
+    stat_halfeye(data = ~filter(.x, trial != "Predicted"), aes(slab_color = tau), .width = NA, point_color = NA, fill = NA) +
+    scale_x_continuous(limits = c(0.25, 1.2), breaks = c(0.5, 0.75, 1.0), transform = "log") +
+    # Observed as empty points
+    geom_pointrange(
+      data = tau_magnet_dta, 
+      aes(x=estimate, xmin = lci, xmax = uci), position = position_nudge(y = -0.05), shape = 1 
+    )  +
+    scale_color_manual(values = palette, aesthetics = c("slab_colour", "colour")) +
+    guides(colour = "none") +
+    labs(x = "Rate Ratio", y = "", slab_colour = bquote(tau[sigma])) +
+    ggthemes::theme_few() +
+    theme(legend.position = "top")
+}
+
+cols <- ggokabeito::palette_okabe_ito(1:3)
+pal1 <- cols[1]
+pal2 <- paste0(cols[1:2], c("25", ""))
+pal3 <- paste0(cols, c("25", "25", ""))
+
+names(pal1) <- "Low"
+names(pal2) <- c("Low", "Moderate")
+names(pal3) <- c("Low", "Moderate", "High")
+
+magnet_plot("Low", pal1)
+dta_plot <- magnet_plot("Low", "white") + 
+  theme(legend.position = "none") 
+ggsave(dta_plot, filename = here::here("output/hfa_figures/tau0.jpeg"), width = 4, height = 3, units = "in", dpi = 320)
+magnet_plot("Low", pal1) |> ggsave(filename = here::here("output/hfa_figures/tau1.jpeg"), width = 4, height = 3, units = "in", dpi = 320)
+magnet_plot(c("Low", "Moderate"), pal2) |> ggsave(filename = here::here("output/hfa_figures/tau2.jpeg"), width = 4, height = 3, units = "in", dpi = 320)
+magnet_plot(c("Low", "Moderate", "High"), pal3) |> ggsave(filename = here::here("output/hfa_figures/tau3.jpeg"), width = 4, height = 3, units = "in", dpi = 320)
+
 # focus on predictions and tau 0.125 --------------------------------------
 brms_object <- bayesian_fits[[1]]$ranef_brms_0pt125
 fillcol <- pal_cols[2]
+
 
 set.seed(1342)
 
