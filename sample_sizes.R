@@ -49,7 +49,7 @@ PASSED::power_NegativeBinomial(
 epiR::epi.sscohortt(
   FT = 2,
   irexp0 = 0.289, 
-  irexp1 = 0.289*0.83,
+  irexp1 = 0.289*0.82,
   power = 0.8,
   n = NA
 )$n.total ## 4074 total
@@ -188,9 +188,8 @@ closest_to_target <- function(df, target) {
     )
 }
 
-yest_cri50 <- median_qi(rrs, .width = 0.5) |> select(starts_with("y")) |> as.vector()
-closest_values <- map(yest_cri50, ~closest_to_target(sample_n3, .x)) |> bind_rows() |> arrange(-rr)
-
+yest_cri50 <- median_qi(rrs, .width = 0.5) |> select(starts_with("y")) |> as.vector() |> unlist()
+closest_values <- map(round(yest_cri50, 2), ~closest_to_target(sample_n3, .x)) |> bind_rows() |> arrange(-rr)
 
 nest <- tidybayes::median_qi(sample_n3$n, .width = 0.95)
 prob_1e4 <- round(100*sum(sample_n3$n <= 1000)/length(sample_n3$n), 1)
