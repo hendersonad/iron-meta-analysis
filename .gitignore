@@ -31,3 +31,4 @@ output/*
 # Useful documents 
 docs/*
 datapaths.R
+*.Rproj
