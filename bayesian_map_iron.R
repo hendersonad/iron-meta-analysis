@@ -566,10 +566,9 @@ magnet_plot <- function(select_taus, palette){
 }
 
 cols <- ggokabeito::palette_okabe_ito(1:3)
-pal1 <- cols[1]
-pal2 <- paste0(cols[1:2], c("25", ""))
-pal3 <- paste0(cols, c("25", "25", ""))
-
+pal1 <- cols[2]
+pal2 <- paste0(cols[2:1], c("25", ""))
+pal3 <- paste0(cols[c(2,1,3)], c("25", "25", ""))
 names(pal1) <- "Low"
 names(pal2) <- c("Low", "Moderate")
 names(pal3) <- c("Low", "Moderate", "High")
@@ -577,7 +576,7 @@ names(pal3) <- c("Low", "Moderate", "High")
 magnet_plot("Low", pal1)
 dta_plot <- magnet_plot("Low", "white") + 
   theme(legend.position = "none") 
-ggsave(dta_plot, filename = here::here("output/hfa_figures/tau0.jpeg"), width = 4, height = 3, units = "in", dpi = 320)
+ggsave(dta_plot, filename = here::here("output/hfa_figures/data0.jpeg"), width = 4, height = 3, units = "in", dpi = 320)
 magnet_plot("Low", pal1) |> ggsave(filename = here::here("output/hfa_figures/tau1.jpeg"), width = 4, height = 3, units = "in", dpi = 320)
 magnet_plot(c("Low", "Moderate"), pal2) |> ggsave(filename = here::here("output/hfa_figures/tau2.jpeg"), width = 4, height = 3, units = "in", dpi = 320)
 magnet_plot(c("Low", "Moderate", "High"), pal3) |> ggsave(filename = here::here("output/hfa_figures/tau3.jpeg"), width = 4, height = 3, units = "in", dpi = 320)
@@ -586,7 +585,7 @@ magnet_plot(c("Low", "Moderate", "High"), pal3) |> ggsave(filename = here::here(
 brms_object <- bayesian_fits[[1]]$ranef_brms_0pt125
 fillcol <- pal_cols[2]
 
-
+  
 set.seed(1342)
 
 # Study-specific effects are deviations + average
