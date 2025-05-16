@@ -164,43 +164,93 @@ ggsave(here::here("output/fairhf2/fig4_iron_bayesian_trt_effects.pdf"), width = 
 
 
 # some bastardisations of the plot for HFA slides -------------------------
+set.seed(32532)
 all_bayes_trt_effects |> 
   mutate(columns = ifelse(str_detect(outcome, "HFH"), 1, 2)) |> 
   ggplot(aes(x = avg_effect, y = forcats::fct_rev(outcome), color = after_stat(x<1))) + 
-  geom_vline(xintercept = 1, lty = 3, alpha = 0.5) +
+  geom_vline(xintercept = 1, lty = 1, col = "gray80" ) +
   geom_dots(data = ~sample_n(.x, 5000)) +
   stat_halfeye(color = NA, slab_fill = NA, slab_colour = "black", .width = 0.95) + 
   #
-  scale_x_continuous(limits = c(0.49, 1.5), breaks = c(0.5, 0.8, 1.0, 1.25), transform = "log") +
+  scale_x_continuous(limits = c(0.49, 1.15), breaks = c(0.5, 0.8, 1.0), transform = "log") +
   scale_color_manual(values = c("gray20", "dodgerblue")) +
   scale_color_manual(aesthetics = "slab_colour",values = c("gray20", "dodgerblue")) +
   labs(y = "", x = "Posterior distribution for average RR/HR", caption = bquote(tau ~ scale ~ prior == 0.125)) +
   facet_wrap(~columns, ncol = 2, scales = "free_y") +
-  ggthemes::theme_few(base_size = 9) +
+  ggthemes::theme_few(base_size = 12) +
   theme(
     legend.position = "none",
-    axis.text.y = element_text(hjust = 0),
+    axis.text.y = element_text(hjust = 0, face = "bold"),
     strip.text = element_blank()
   )
 
-ggsave(here::here("output/hfa_figures/fig402_iron_bayesian_trt_effects_nolabs.pdf"), width = 9, height = 4, units = "in")
+ggsave(here::here("output/hfa_figures/fig402_iron_bayesian_trt_effects_nolabs_1.pdf"), width = 9, height = 4, units = "in")
+ggsave(here::here("output/hfa_figures/fig402_iron_bayesian_trt_effects_nolabs_1.jpeg"), width = 9, height = 4, units = "in")
+
+set.seed(32532)
+all_bayes_trt_effects |> 
+  mutate(columns = ifelse(str_detect(outcome, "HFH"), 1, 2)) |> 
+  ggplot(aes(x = avg_effect, y = forcats::fct_rev(outcome), color = after_stat(x<0.9))) + 
+  geom_vline(xintercept = 1, lty = 1, col = "gray80" ) +
+  geom_dots(data = ~sample_n(.x, 5000)) +
+  stat_halfeye(color = NA, slab_fill = NA, slab_colour = "black", .width = 0.95) + 
+  #
+  scale_x_continuous(limits = c(0.49, 1.15), breaks = c(0.5, 0.8, 1.0), transform = "log") +
+  scale_color_manual(values = c("gray20", "dodgerblue")) +
+  scale_color_manual(aesthetics = "slab_colour",values = c("gray20", "dodgerblue")) +
+  labs(y = "", x = "Posterior distribution for average RR/HR", caption = bquote(tau ~ scale ~ prior == 0.125)) +
+  facet_wrap(~columns, ncol = 2, scales = "free_y") +
+  ggthemes::theme_few(base_size = 12) +
+  theme(
+    legend.position = "none",
+    axis.text.y = element_text(hjust = 0, face = "bold"),
+    strip.text = element_blank()
+  )
+
+ggsave(here::here("output/hfa_figures/fig402_iron_bayesian_trt_effects_nolabs_09.pdf"), width = 9, height = 4, units = "in")
+ggsave(here::here("output/hfa_figures/fig402_iron_bayesian_trt_effects_nolabs_09.jpeg"), width = 9, height = 4, units = "in")
+
+set.seed(32532)
+all_bayes_trt_effects |> 
+  mutate(columns = ifelse(str_detect(outcome, "HFH"), 1, 2)) |> 
+  ggplot(aes(x = avg_effect, y = forcats::fct_rev(outcome), color = after_stat(x<0.8))) + 
+  geom_vline(xintercept = 1, lty = 1, col = "gray80" ) +
+  geom_dots(data = ~sample_n(.x, 5000)) +
+  stat_halfeye(color = NA, slab_fill = NA, slab_colour = "black", .width = 0.95) + 
+  #
+  scale_x_continuous(limits = c(0.49, 1.15), breaks = c(0.5, 0.8, 1.0), transform = "log") +
+  scale_color_manual(values = c("gray20", "dodgerblue")) +
+  scale_color_manual(aesthetics = "slab_colour",values = c("gray20", "dodgerblue")) +
+  labs(y = "", x = "Posterior distribution for average RR/HR", caption = bquote(tau ~ scale ~ prior == 0.125)) +
+  facet_wrap(~columns, ncol = 2, scales = "free_y") +
+  ggthemes::theme_few(base_size = 12) +
+  theme(
+    legend.position = "none",
+    axis.text.y = element_text(hjust = 0, face = "bold"),
+    strip.text = element_blank()
+  )
+
+ggsave(here::here("output/hfa_figures/fig402_iron_bayesian_trt_effects_nolabs_08.pdf"), width = 9, height = 4, units = "in")
+ggsave(here::here("output/hfa_figures/fig402_iron_bayesian_trt_effects_nolabs_08.jpeg"), width = 9, height = 4, units = "in")
 
 all_bayes_trt_effects |> 
   filter(outcome == "Total HFH and CV death") |> 
   ggplot(aes(x = avg_effect, y = forcats::fct_rev(outcome), color = after_stat(x<1))) + 
-  geom_vline(xintercept = 1, lty = 3, alpha = 0.5) +
+  geom_vline(xintercept = 1, lty = 1, col = "gray80" ) +
   geom_dots(data = ~sample_n(.x, 5000)) +
   stat_halfeye(color = NA, slab_fill = NA, slab_colour = "black", .width = 0.95) + 
   #
-  scale_x_continuous(limits = c(0.49, 1.5), breaks = c(0.5, 0.8, 1.0, 1.25), transform = "log") +
+  scale_x_continuous(limits = c(0.49, 1.15), breaks = c(0.5, 0.8, 1.0), transform = "log") +
   scale_color_manual(values = c("gray20", "dodgerblue")) +
   scale_color_manual(aesthetics = "slab_colour",values = c("gray20", "dodgerblue")) +
-  labs(y = "", x = "Posterior distribution for average RR/HR", caption = bquote(tau ~ scale ~ prior == 0.125)) +
-  ggthemes::theme_few(base_size = 9) +
+  labs(y = "", x = "Posterior distribution for average RR", caption = bquote(tau ~ scale ~ prior == 0.125)) +
+  ggthemes::theme_few(base_size = 12) +
   theme(
     legend.position = "none",
-    axis.text.y = element_text(hjust = 0),
+    axis.text.y = element_text(hjust = 0, face = "bold"),
     strip.text = element_blank()
   )
 
-ggsave(here::here("output/hfa_figures/fig403_iron_bayesian_trt_effects_nolabs_primary.pdf"), width = 4.5, height = 2, units = "in")
+ggsave(here::here("output/hfa_figures/fig403_iron_bayesian_trt_effects_nolabs_primary.pdf"), width = 14.94, height = 6.63, units = "cm")
+ggsave(here::here("output/hfa_figures/fig403_iron_bayesian_trt_effects_nolabs_primary.jpeg"), width = 14.94, height = 6.63, units = "cm")
+

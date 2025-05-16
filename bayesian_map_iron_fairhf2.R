@@ -347,6 +347,7 @@ plot_rec_cnpt <- plot_results(df = iron_rec_cnpt, freq_fit = freq_rec_cnpt, baye
 plot_rec_cnpt[[9]]
 plot_rec_cnpt[[8]]
 
+
 plot_rec_hfh <- plot_results(df = iron_rec_hfh, freq_fit = freq_rec_hfh, bayes_fit = bayes_estimates[[2]]$bayes_est, rr_or_hr = "RR")
 plot_tte_cvd <- plot_results(df = iron_tte_cvd, freq_fit = freq_tte_cvd, bayes_fit = bayes_estimates[[3]]$bayes_est, rr_or_hr = "HR")
 plot_tte_acm <- plot_results(df = iron_tte_acm, freq_fit = freq_tte_acm, bayes_fit = bayes_estimates[[4]]$bayes_est, rr_or_hr = "HR")
@@ -355,6 +356,8 @@ plot_tte_acm <- plot_results(df = iron_tte_acm, freq_fit = freq_tte_acm, bayes_f
 ggsave(plot_rec_cnpt[[9]] + labs(title = "Total HFH and CV death"), filename = here::here("output/hfa_figures/primary_pooled.pdf"), width = 6, height = 4, units = "in")
 ggsave(plot_tte_cvd[[9]], filename = here::here("output/hfa_figures/cvd_pooled.pdf"), width = 6, height = 4, units = "in")
 
+
+## output all the total estimate panels
 ggsave(plot_rec_cnpt[[8]], filename = here::here("output/fairhf2/fig2a_forest_rec_cnpt.pdf"), width = 3, height = 4, units = "in")
 ggsave(plot_rec_hfh[[8]], filename = here::here("output/fairhf2/fig2b_forest_rec_hfh.pdf"), width = 3, height = 4, units = "in")
 ggsave(plot_tte_cvd[[8]], filename = here::here("output/fairhf2/fig2d_forest_tte_cvd.pdf"), width = 3, height = 4, units = "in")
