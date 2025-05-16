@@ -596,13 +596,13 @@ post_pred_prob <- out_predict |>
 
 # Draw plot
 pooled_avg <- pull(out_all_sum[out_all_sum$trial == "Pooled", "b_Intercept"])
-out_all |> 
+orange_summ <- out_all |> 
   ggplot(aes(x = b_Intercept, y = trial)) +
   # Zero
   geom_vline(xintercept = 1, linewidth = .25, lty = 2) +
   stat_halfeye(
-    data = ~mutate(.x, b_Intercept = ifelse(trial == "Predicted", NA, b_Intercept)), 
-    .width = c(0), fill = fillcol) +
+    data = ~mutate(.x, b_Intercept = ifelse(trial == "Predicted", NA, b_Intercept)),
+    .width = c(0), col = NA, fill = fillcol, normalize = "all", height = 0.75) +
   stat_dots(
     data = ~filter(.x, trial == "Predicted"), 
     col = fillcol, fill = fillcol) +
@@ -624,5 +624,101 @@ out_all |>
   labs(x = "RR", y = "") +
   ggthemes::theme_few()
 
-ggsave(here::here("output/fairhf2/fig3_orange_summary.pdf"), width = 6, height = 4.5, units = "in")
+orange_summ
+ggsave(orange_summ, filename = here::here("output/fairhf2/fig3_orange_summary.pdf"), width = 6, height = 4.5, units = "in")
+
+## without Predicted
+pooled_avg <- pull(out_all_sum[out_all_sum$trial == "Pooled", "b_Intercept"])
+orange_summ_nopredict <- out_all |> 
+  filter(trial != "Predicted") |> 
+  ggplot(aes(x = b_Intercept, y = trial)) +
+  # Zero
+  geom_vline(xintercept = 1, linewidth = .25, lty = 2) +
+  stat_halfeye(
+    data = ~mutate(.x, b_Intercept = ifelse(trial == "Predicted", NA, b_Intercept)),
+    .width = c(0), col = NA, fill = fillcol, normalize = "all", height = 0.75) +
+  stat_dots(
+    data = ~filter(.x, trial == "Predicted"), 
+    col = fillcol, fill = fillcol) +
+  # Add text labels
+  geom_text(
+    data = mutate(out_all_sum, across(where(is.numeric), num_to_printchar)) |> 
+      filter(trial %in% c("Pooled")), 
+    aes(label = str_glue("{b_Intercept} ({.lower}, {.upper})"), x = 1.15),
+    hjust = 0,
+    position = position_nudge(y = .4)
+  ) +
+  # Observed as empty points
+  geom_pointrange(
+    data = iron_rec_cnpt |> mutate(trial = str_replace_all(trial, "\\.", " ")), 
+    aes(xmin=lci, x = estimate, xmax = uci), position = position_nudge(y = -.2), 
+    shape = 1, linetype = "dashed", size = 0.4
+  )  +
+  scale_x_continuous(limits = c(0.18, 2), breaks = c(0.5,0.8, 1.0, 1.25), transform = "log") +
+  labs(x = "RR", y = "") +
+  ggthemes::theme_few()
+
+orange_summ_nopredict
+ggsave(orange_summ_nopredict, filename = here::here("output/fairhf2/fig3_orange_summary_nopredict.pdf"), width = 6, height = 4.5, units = "in")
+## without Predicted
+pooled_avg <- pull(out_all_sum[out_all_sum$trial == "Pooled", "b_Intercept"])
+orange_summ_nopredict <- out_all |> 
+  filter(trial != "Predicted") |> 
+  ggplot(aes(x = b_Intercept, y = trial)) +
+  # Zero
+  geom_vline(xintercept = 1, linewidth = .25, lty = 2) +
+  stat_halfeye(
+    data = ~mutate(.x, b_Intercept = ifelse(trial == "Predicted", NA, b_Intercept)),
+    .width = c(0), col = NA, fill = fillcol, normalize = "all", height = 0.75) +
+  stat_dots(
+    data = ~filter(.x, trial == "Predicted"), 
+    col = fillcol, fill = fillcol) +
+  # Add text labels
+  geom_text(
+    data = mutate(out_all_sum, across(where(is.numeric), num_to_printchar)) |> 
+      filter(trial %in% c("Pooled")), 
+    aes(label = str_glue("{b_Intercept} ({.lower}, {.upper})"), x = 1.15),
+    hjust = 0,
+    position = position_nudge(y = .4)
+  ) +
+  # Observed as empty points
+  geom_pointrange(
+    data = iron_rec_cnpt |> mutate(trial = str_replace_all(trial, "\\.", " ")), 
+    aes(xmin=lci, x = estimate, xmax = uci), position = position_nudge(y = -.2), 
+    shape = 1, linetype = "dashed", size = 0.4
+  )  +
+  scale_x_continuous(limits = c(0.18, 2), breaks = c(0.5,0.8, 1.0, 1.25), transform = "log") +
+  labs(x = "RR", y = "") +
+  ggthemes::theme_few()
+
+orange_summ_nopredict
+ggsave(orange_summ_nopredict, filename = here::here("output/fairhf2/fig3_orange_summary_nopredict.pdf"), width = 6, height = 4.5, units = "in")
+
+
+## without Predicted
+pooled_avg <- pull(out_all_sum[out_all_sum$trial == "Pooled", "b_Intercept"])
+data_only <- out_all |> 
+  filter(trial != "Predicted") |> 
+  ggplot(aes(x = b_Intercept, y = trial)) +
+  # Zero
+  geom_vline(xintercept = 1, linewidth = .25, lty = 2) +
+  stat_halfeye(
+    data = ~mutate(.x, b_Intercept = ifelse(trial == "Predicted", NA, b_Intercept)),
+    .width = c(0), col = NA, fill = "white", normalize = "all", height = 0.75) +
+  stat_dots(
+    data = ~filter(.x, trial == "Predicted"), 
+    col = fillcol, fill = fillcol) +
+  # Observed as empty points
+  geom_pointrange(
+    data = iron_rec_cnpt |> mutate(trial = str_replace_all(trial, "\\.", " ")), 
+    aes(xmin=lci, x = estimate, xmax = uci), position = position_nudge(y = -.2), 
+    shape = 1, linetype = "dashed", size = 0.4
+  )  +
+  scale_x_continuous(limits = c(0.18, 2), breaks = c(0.5,0.8, 1.0, 1.25), transform = "log") +
+  labs(x = "RR", y = "") +
+  ggthemes::theme_few()
+
+data_only
+ggsave(data_only, filename = here::here("output/fairhf2/fig3_dataonly.pdf"), width = 6, height = 4.5, units = "in")
+
 
