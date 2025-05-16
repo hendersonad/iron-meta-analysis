@@ -56,6 +56,8 @@ all_estimates <- ggplot(all_iron_estimates, aes(x = estimate, xmin = lci, xmax =
 
 ggsave(all_estimates, filename = here::here("output/fairhf2/fig1_trial_estimates.pdf"), width = 6  , height = 5, units = "in")
 
+
+
 # Frequentist meta analyses -----------------------------------------------
 do_frequentist_style <- function(
     input_data = data.frame(),
@@ -242,7 +244,7 @@ plot_results <- function(df, freq_fit, bayes_fit, rr_or_hr){
       geom_point(size = 1.5, pch = 16 , color = col) +
       labs(y = "", x = xlab, title = tt) +
       scale_x_continuous(limits = c(0.149, 2.5), breaks = c(0.5, 1.0, 2.0), transform = "log") +
-      ggthemes::theme_few(base_size = 7) +
+      ggthemes::theme_few(base_size = 10) +
       theme(plot.title = element_text(hjust = 0, face = "bold"),
             plot.title.position = "plot")
   }
@@ -260,7 +262,7 @@ plot_results <- function(df, freq_fit, bayes_fit, rr_or_hr){
           expression(tau[sigma]==0.5)
         )
       ),
-    tt = "B. Bayesian meta-analysis with different priors\nfor between-trial heterogeneity", 
+    tt = "B. Bayesian meta-analysis with different\npriors for between-trial heterogeneity", 
     xlab = paste(x_lab, "(95% CrI)"))
   
   # grob the table 
@@ -271,7 +273,7 @@ plot_results <- function(df, freq_fit, bayes_fit, rr_or_hr){
   make_table <- function(datain){
     datain |>
       mutate(across(where(is.numeric), ~formatC(., format = "f", digits = 2, width = 4, flag = "0"))) |> 
-      mutate(txt_result = paste0(estimate, " [", lci, "; ", uci, "]")) |> 
+      mutate(txt_result = paste0(estimate, " (", lci, " - ", uci, ")")) |> 
       select(Source = result, `RR (95% CI or CrI)` = txt_result) |> 
       flextable::flextable(cwidth = 1.5) |>
       flextable::align(align = "right", j = 2, part = "all") |> 
@@ -297,8 +299,8 @@ plot_results <- function(df, freq_fit, bayes_fit, rr_or_hr){
       select(Source = result, `RR (95% CI or CrI)` = txt_result) |> 
       ggplot(aes(x = 1, y = forcats::fct_rev(Source), label = `RR (95% CI or CrI)`)) +
       xlim(c(0.9, 1.2)) +
-      geom_text(size = 7, size.unit = "pt") +
-      theme_void(base_size = 7)
+      geom_text(size = 12, size.unit = "pt") +
+      theme_void(base_size = 10)
   }
   a <- plot_data(data_subset)
   b <- plot_data(freq_subset)
@@ -316,25 +318,27 @@ plot_results <- function(df, freq_fit, bayes_fit, rr_or_hr){
   
   just_the_pooled_numbers <- cowplot::plot_grid(
     # to leave space for a title later
-    cowplot::plot_grid(
-      NULL,
-      panel_b + theme(plot.title.position = "panel", plot.title = element_text(face = "plain")) + scale_x_continuous(limits = c(0.495, 1.4), breaks = c(0.5, 0.8, 1.0, 1.25), transform = "log"), 
-      panel_c + theme(plot.title.position = "panel", plot.title = element_text(face = "plain")) + scale_x_continuous(limits = c(0.495, 1.4), breaks = c(0.5, 0.8, 1.0, 1.25), transform = "log"), 
-      ncol = 1,
-      align = "v",
-      rel_heights = c(0.25, 2, 3)
-    ),
-    cowplot::plot_grid(
-      NULL, 
+    #cowplot::plot_grid(
+      NULL, NULL, 
+      panel_b + theme(plot.title.position = "panel", plot.title = element_text(size = 10, face = "plain")) + scale_x_continuous(limits = c(0.495, 1.4), breaks = c(0.5, 0.8, 1.0, 1.25), transform = "log"), 
       b,
+      panel_c + theme(plot.title.position = "panel", plot.title = element_text(size = 10, face = "plain")) + scale_x_continuous(limits = c(0.495, 1.4), breaks = c(0.5, 0.8, 1.0, 1.25), transform = "log"), 
       c,
-      ncol = 1,
-      align = "v",
-      rel_heights = c(0.25, 2, 3)
-    ),
-    ncol = 2,
-    align = "h",
-    rel_widths = c(6, 4)
+      ncol = 2,
+      align = "h",
+      rel_heights = c(0.25, 2, 3),
+    # ),
+    # cowplot::plot_grid(
+    #   NULL, 
+    #   b,
+    #   c,
+    #   ncol = 1,
+    #   align = "v",
+    #   rel_heights = c(0.25, 2, 3)
+    # ),
+    # ncol = 2,
+    #align = "h",
+    rel_widths = c(4, 6)
   ) 
   
   return(list(panel_a, a, panel_b, b, panel_c, c, abstract, plot_combined, just_the_pooled_numbers))
@@ -342,10 +346,14 @@ plot_results <- function(df, freq_fit, bayes_fit, rr_or_hr){
 plot_rec_cnpt <- plot_results(df = iron_rec_cnpt, freq_fit = freq_rec_cnpt, bayes_fit = bayes_estimates[[1]]$bayes_est, rr_or_hr = "RR")
 plot_rec_cnpt[[9]]
 plot_rec_cnpt[[8]]
+
 plot_rec_hfh <- plot_results(df = iron_rec_hfh, freq_fit = freq_rec_hfh, bayes_fit = bayes_estimates[[2]]$bayes_est, rr_or_hr = "RR")
 plot_tte_cvd <- plot_results(df = iron_tte_cvd, freq_fit = freq_tte_cvd, bayes_fit = bayes_estimates[[3]]$bayes_est, rr_or_hr = "HR")
 plot_tte_acm <- plot_results(df = iron_tte_acm, freq_fit = freq_tte_acm, bayes_fit = bayes_estimates[[4]]$bayes_est, rr_or_hr = "HR")
 
+## plots for HFA slides with zoomed numbers
+ggsave(plot_rec_cnpt[[9]] + labs(title = "Total HFH and CV death"), filename = here::here("output/hfa_figures/primary_pooled.pdf"), width = 6, height = 4, units = "in")
+ggsave(plot_tte_cvd[[9]], filename = here::here("output/hfa_figures/cvd_pooled.pdf"), width = 6, height = 4, units = "in")
 
 ggsave(plot_rec_cnpt[[8]], filename = here::here("output/fairhf2/fig2a_forest_rec_cnpt.pdf"), width = 3, height = 4, units = "in")
 ggsave(plot_rec_hfh[[8]], filename = here::here("output/fairhf2/fig2b_forest_rec_hfh.pdf"), width = 3, height = 4, units = "in")
@@ -722,3 +730,80 @@ data_only
 ggsave(data_only, filename = here::here("output/fairhf2/fig3_dataonly.pdf"), width = 6, height = 4.5, units = "in")
 
 
+out_all |> 
+  filter(trial != "Predicted") |> 
+  ggplot(aes(x = b_Intercept, y = trial)) +
+  # Zero
+  geom_vline(xintercept = 1, linewidth = .25, lty = 2) +
+  stat_halfeye(
+    data = ~mutate(.x, b_Intercept = ifelse(trial == "Predicted", NA, b_Intercept)), 
+    .width = c(0), fill = fillcol) +
+  # Add text labels
+  geom_text(
+    data = mutate(out_all_sum, across(where(is.numeric), num_to_printchar)) |> 
+      filter(trial %in% c("Pooled")), 
+    aes(label = str_glue("{b_Intercept} ({.lower}, {.upper})"), x = 1.15),
+    hjust = 0,
+    position = position_nudge(y = .4)
+  ) +
+  # Observed as empty points
+  geom_pointrange(
+    data = iron_rec_cnpt |> mutate(trial = str_replace_all(trial, "\\.", " ")), 
+    aes(xmin=lci, x = estimate, xmax = uci), position = position_nudge(y = -.2), 
+    shape = 1, linetype = "dashed", size = 0.4
+  )  +
+  scale_x_continuous(limits = c(0.18, 2), breaks = c(0.5,0.8, 1.0, 1.25), transform = "log") +
+  labs(x = "RR", y = "") +
+  ggthemes::theme_few()
+
+ggsave(here::here("output/fairhf2/fig3_orange_summary_nopredicted.pdf"), width = 6, height = 4.5, units = "in")
+
+out_all |> 
+  filter(trial != "Predicted") |> 
+  ggplot(aes(x = b_Intercept, y = trial)) +
+  # Zero
+  geom_vline(xintercept = 1, linewidth = .25, lty = 2) +
+  stat_halfeye(
+    data = ~mutate(.x, b_Intercept = ifelse(trial == "Predicted", NA, b_Intercept)), 
+    .width = c(0), fill = "white", col = "white") +
+  # Observed as empty points
+  geom_pointrange(
+    data = iron_rec_cnpt |> mutate(trial = str_replace_all(trial, "\\.", " ")), 
+    aes(xmin=lci, x = estimate, xmax = uci), position = position_nudge(y = -.2), 
+    shape = 1, linetype = "dashed", size = 0.4
+  ) +
+  scale_x_continuous(limits = c(0.18, 2), breaks = c(0.5,0.8, 1.0, 1.25), transform = "log") +
+  labs(x = "RR", y = "") +
+  ggthemes::theme_few()
+
+ggsave(here::here("output/fairhf2/fig3_orange_summary_dataonly.pdf"), width = 6, height = 4.5, units = "in")
+
+
+
+
+# Draw plot
+pooled_avg <- pull(out_all_sum[out_all_sum$trial == "Pooled", "b_Intercept"])
+out_all |> 
+  filter(trial %in% c("Predicted", "Pooled")) |> 
+  ggplot(aes(x = b_Intercept, y = trial)) +
+  # Zero
+  geom_vline(xintercept = 1, linewidth = .25, lty = 2) +
+  stat_halfeye(
+    data = ~mutate(.x, b_Intercept = ifelse(trial == "Predicted", NA, b_Intercept)), 
+    .width = c(0), fill = fillcol) +
+  stat_dots(
+    data = ~filter(.x, trial == "Predicted"), 
+    col = fillcol, fill = fillcol) +
+  # Add text labels
+  geom_text(
+    data = mutate(out_all_sum, across(where(is.numeric), num_to_printchar)) |> 
+      filter(trial %in% c("Predicted", "Pooled")), 
+    aes(label = str_glue("{b_Intercept} ({.lower}, {.upper})"), x = 1.15),
+    hjust = 0,
+    position = position_nudge(y = .4)
+  ) +
+  scale_x_continuous(limits = c(0.18, 2), breaks = c(0.5,0.8, 1.0, 1.25), transform = "log") +
+  labs(x = "RR", y = "") +
+  ggthemes::theme_few()
+
+ggsave(here::here("output/fairhf2/fig3_orange_summary_predicted_pooled.pdf"), width = 6, height = 2.5, units = "in")

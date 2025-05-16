@@ -51,6 +51,24 @@ all_estimates <- ggplot(all_iron_estimates, aes(x = estimate, xmin = lci, xmax =
 
 ggsave(all_estimates, filename = here::here("output/fig1_trial_estimates.pdf"), width = 9  , height = 4, units = "in")
 
+
+ggplot(all_iron_estimates, aes(x = estimate, xmin = lci, xmax = uci, y = fct_rev(trial), group = trial)) +
+  geom_vline(xintercept = 1, lty = 1, col = "gray80") +
+  geom_linerange() +
+  geom_text(aes(label = formatC(lci, format = "f", width = 3, flag = "0", digits = 2), x = lci), nudge_y = -0.2, size = 10, size.unit = "pt") + 
+  geom_text(aes(label = formatC(uci, format = "f", width = 3, flag = "0", digits = 2), x = uci), nudge_y = -0.2, size = 10, size.unit = "pt") + 
+  geom_text(aes(label = formatC(estimate, format = "f", width = 3, flag = "0", digits = 2), x = estimate), nudge_y = 0.2, size = 10, size.unit = "pt") + 
+  geom_point(size = 1.5, pch = 16) +
+  facet_wrap(~outcome, ncol = 2) +
+  scale_x_continuous(limits = c(0.11, 2.5), breaks = c(0.5, 1.0, 2.0), transform = "log") +
+  labs(y = "", x = "RR") +
+  ggthemes::theme_few(base_size = 11) +
+  theme(plot.title = element_text(hjust = 0),
+        plot.title.position = "plot",
+        strip.text = element_text(hjust = 0, face = "bold", size = 14))
+
+ggsave(filename = here::here("output/hfa_figures/fig1_trial_estimates.pdf"), width = 7, height = 3, units = "in")
+
 # Frequentist meta analyses -----------------------------------------------
 do_frequentist_style <- function(
     input_data = data.frame(),
