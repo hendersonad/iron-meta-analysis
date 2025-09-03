@@ -91,14 +91,20 @@ out_all |>
 ggsave(here::here("output/fairhf2_set3/fig3_orange_summary.pdf"), width = 6, height = 4.5, units = "in")
 
 
+
+## without Predicted
+pooled_avg <- pull(out_all_sum[out_all_sum$trial == "Pooled", "b_Intercept"])
 out_all |> 
   filter(trial != "Predicted") |> 
   ggplot(aes(x = b_Intercept, y = trial)) +
   # Zero
   geom_vline(xintercept = 1, linewidth = .25, lty = 2) +
   stat_halfeye(
-    data = ~mutate(.x, b_Intercept = ifelse(trial == "Predicted", NA, b_Intercept)), 
-    .width = c(0), fill = fillcol) +
+    data = ~mutate(.x, b_Intercept = ifelse(trial == "Predicted", NA, b_Intercept)),
+    .width = c(0), col = NA, fill = fillcol, normalize = "all", height = 0.75) +
+  stat_dots(
+    data = ~filter(.x, trial == "Predicted"), 
+    col = fillcol, fill = fillcol) +
   # Add text labels
   geom_text(
     data = mutate(out_all_sum, across(where(is.numeric), num_to_printchar)) |> 
@@ -118,3 +124,4 @@ out_all |>
   ggthemes::theme_few()
 
 ggsave(here::here("output/fairhf2_set3/fig3_orange_summary_nopredicted.pdf"), width = 6, height = 4.5, units = "in")
+ggsave(here::here("output/fairhf2_set3/fig3_orange_summary_nopredicted.jpeg"), width = 6, height = 4.5, units = "in")
