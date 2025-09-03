@@ -56,7 +56,17 @@ all_estimates <- ggplot(all_iron_estimates, aes(x = estimate, xmin = lci, xmax =
 
 ggsave(all_estimates, filename = here::here("output/fairhf2/fig1_trial_estimates.pdf"), width = 6  , height = 5, units = "in")
 
-
+meta::metagen(
+  TE = iron_tte_cvd$lrr,
+  seTE = iron_tte_cvd$sd,
+  studlab = iron_tte_cvd$trial,
+  n.e = iron_tte_cvd$n_trt,
+  n.c = iron_tte_cvd$n_placebo,
+  #control=list(maxiter=100),
+  method.tau = "PM",
+  sm = "HR",
+  hakn = FALSE
+)
 
 # Frequentist meta analyses -----------------------------------------------
 do_frequentist_style <- function(
