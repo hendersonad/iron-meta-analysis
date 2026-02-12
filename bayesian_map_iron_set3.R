@@ -1,5 +1,6 @@
 library(RBesT)
 library(meta)
+library(tidyr)
 library(ggplot2)
 library(forcats)
 library(stringr)
@@ -418,6 +419,42 @@ bayes_results_table <- purrr::map(bayes_estimates, merge_bayesian_estimates) |>
   janitor::clean_names() |> 
   rename(trt_effect = summ_2, tau_estimate = summ_3) |> 
   mutate(outcome = outcome_vector)
+
+
+# summarising bayesian posterior probabilities ----------------------------
+get_posterior_probs <- function(model_list){
+  tau5 <- as_draws_df(model_list$ranef_brms_0pt5)$b_Intercept |> exp()
+  tau125 <- as_draws_df(model_list$ranef_brms_0pt125)$b_Intercept |> exp()
+  tau05 <- as_draws_df(model_list$ranef_brms_0pt05)$b_Intercept |> exp()
+  
+  calculate_post_prob <- function(rr, threshold){
+    100*sum(rr < threshold)/length(rr)
+  }
+  
+  thresholds <- c(1, 0.9, 0.8)
+  
+  df <- data.frame(tau5, tau125, tau05)
+  
+  df |>
+    tidyr::pivot_longer(everything(), names_to = "model", values_to = "value") |>
+    tidyr::crossing(threshold = thresholds) |>
+    group_by(model, threshold) |>
+    summarise(post_prob = 100 * mean(value < threshold), .groups = "drop")
+}
+
+bayes_posterior_probs <- purrr::map(bayesian_fits, get_posterior_probs)
+
+outcome_vector_postprob <- rep(levels(all_iron_estimates$outcome), each = 9)
+
+all_bayes_estimates_postprob <- bind_rows(bayes_posterior_probs) |> 
+  mutate(outcome = factor(outcome_vector_postprob, levels = levels(all_iron_estimates$outcome))) |> 
+  janitor::clean_names() |> 
+  tidyr::pivot_wider(names_from = threshold, values_from = post_prob) |> 
+  dplyr::select(outcome, everything()) |> 
+  dplyr::arrange(model, outcome)
+
+gt::gt(all_bayes_estimates_postprob) |> 
+  gt::gtsave(here::here("output/fairhf2_set3/table9_bayesian_posterior_probs.docx"))
 
 # summarising the frequentist fits ---------------------------------------
 all_freq_results <- function(freq_fit){
