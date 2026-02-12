@@ -114,6 +114,7 @@ placebo_inputs <- plot_predictions(modelcontrolrates, by = "study", wts = "n", d
     ) +
   theme(legend.position = "top")
 placebo_inputs
+
 ggsave(placebo_inputs,filename =  here("output/fairhf2/estimated_placebo_rates.pdf"), width = 6, height = 4)
 
 ## load estimated pooled RR
@@ -128,7 +129,7 @@ colnames(x)[length(rrs)+1] <- "controlrate"
 
 ratediffs <- x |> 
   tidyr::pivot_longer(starts_with("sim")) |> 
-  mutate(ratediff = controlrate - value)
+  mutate(ratediff = value - controlrate)
 
 median_qi(estimated_control_rate) ## Placebo rate
 median_qi(ratediffs$value) ## IV iron rate
@@ -156,10 +157,21 @@ ratediff_plot <- ratediffs |>
     y = "Rate per 100 person-years",
     x = ""
   ) +
-  theme(legend.position = "none")
+  theme(legend.position = "none") + 
+  stat_summary(
+    fun.data = "median_hilow",
+    fun.args = list(conf.int = 0.95),
+    geom = "label",
+    aes(label = sprintf("%.1f\n[%.1f, %.1f]",
+                        after_stat(y), after_stat(ymin), after_stat(ymax))),
+    size = 3.2, colour = "black", fill = "white"
+  )
+
+# add numbers to this plot 
 ratediff_plot
+
 ggsave(ratediff_plot, filename = here("output/fairhf2/estimated_absolute_benefit.pdf"), width = 6, height = 4)
 
 cowplot::plot_grid(placebo_inputs, ratediff_plot, labels = "AUTO", ncol = 1)
 ggsave(filename = here("output/fairhf2/estimated_benefits_combined.pdf"), width = 5.5, height = 9)
-ci
+
