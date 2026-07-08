@@ -20,7 +20,7 @@ library(ggsci)
 fs::dir_create(here("output/fairhf2"))
 fs::dir_create(here("brmsfits/fairhf2"))
 
-source(here::here("iron_data_fairhf2.R"))
+source(here::here("code/0_dataprep/iron_data_fairhf2.R"))
 iron_rec_cnpt |> select(starts_with("n")) |> summarise(across(everything(), sum))
 iron_rec_cnpt
 
@@ -55,6 +55,7 @@ all_estimates <- ggplot(all_iron_estimates, aes(x = estimate, xmin = lci, xmax =
         strip.text = element_text(hjust = 0))
 
 ggsave(all_estimates, filename = here::here("output/fairhf2/fig1_trial_estimates.pdf"), width = 6  , height = 5, units = "in")
+ggsave(all_estimates, filename = here::here("output/fairhf2/fig1_trial_estimates.tiff"), width = 6  , height = 5, units = "in")
 
 meta::metagen(
   TE = iron_tte_cvd$lrr,
@@ -136,6 +137,7 @@ funnel_plot <- funnel_data |>
   theme(legend.position = "none")
 funnel_plot
 ggsave(funnel_plot, filename = here("output/fairhf2/fig4_funnelplot.pdf"), width = 4, height = 4)
+ggsave(funnel_plot, filename = here("output/fairhf2/fig4_funnelplot.tiff"), width = 4, height = 4)
 
 # Bayesian meta analyses with brms --------------------------------------------------
 ## random effects
@@ -384,6 +386,7 @@ cowplot::plot_grid(
   labels = levels(all_iron_estimates$outcome), label_size = 8, hjust = -0.1
 ) 
 ggsave(filename = here::here("output/fairhf2/fig2_all_forest.pdf"), width = 12, height = 7, units = "in")
+ggsave(filename = here::here("output/fairhf2/fig2_all_forest.tiff"), width = 12, height = 7, units = "in")
 
 
 # summarising tau estimates -----------------------------------------------
@@ -563,7 +566,7 @@ plot_grid(
   fp1, fp2, fp3, ncol = 3
 )
 ggsave(here::here("output/fairhf2/fig3_iron_tau_forestplots.pdf"), width = 14, height = 4.5, units = "in")
-iron_rec_cnpt
+ggsave(here::here("output/fairhf2/fig3_iron_tau_forestplots.tiff"), width = 14, height = 4.5, units = "in")
 
 
 
@@ -647,6 +650,7 @@ orange_summ <- out_all |>
 
 orange_summ
 ggsave(orange_summ, filename = here::here("output/fairhf2/fig3_orange_summary.pdf"), width = 6, height = 4.5, units = "in")
+ggsave(orange_summ, filename = here::here("output/fairhf2/fig3_orange_summary.tiff"), width = 6, height = 4.5, units = "in")
 
 ## without Predicted
 pooled_avg <- pull(out_all_sum[out_all_sum$trial == "Pooled", "b_Intercept"])
@@ -820,3 +824,4 @@ out_all |>
   ggthemes::theme_few()
 
 ggsave(here::here("output/fairhf2/fig3_orange_summary_predicted_pooled.pdf"), width = 6, height = 2.5, units = "in")
+
