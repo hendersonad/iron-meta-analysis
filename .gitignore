@@ -32,3 +32,4 @@ output/*
 docs/*
 datapaths.R
 *.Rproj
+.positai
