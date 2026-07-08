@@ -116,6 +116,7 @@ placebo_inputs <- plot_predictions(modelcontrolrates, by = "study", wts = "n", d
 placebo_inputs
 
 ggsave(placebo_inputs,filename =  here("output/fairhf2/estimated_placebo_rates.pdf"), width = 6, height = 4)
+ggsave(placebo_inputs,filename =  here("output/fairhf2/estimated_placebo_rates.tiff"), width = 6, height = 4)
 
 ## load estimated pooled RR
 estimatedrr <- readRDS(here("brmsfits/fairhf2/total_hfh_and_cv_death_0.125.rds"))
@@ -176,4 +177,3 @@ ggsave(ratediff_plot, filename = here("output/fairhf2/estimated_absolute_benefit
 cowplot::plot_grid(placebo_inputs, ratediff_plot, labels = "AUTO", ncol = 1)
 ggsave(filename = here("output/fairhf2/estimated_benefits_combined.pdf"), width = 5.5, height = 9)
 ggsave(filename = here("output/fairhf2/estimated_benefits_combined.tiff"), width = 5.5, height = 9)
-
