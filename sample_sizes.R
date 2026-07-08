@@ -132,6 +132,7 @@ plotb
 
 cowplot::plot_grid(plota, plotb, align = "h")
 ggsave(here("output/fairhf2/necessary_samplesizes_fixed_baserate.pdf"), width = 9, height = 4.5)
+ggsave(here("output/fairhf2/necessary_samplesizes_fixed_baserate.tiff"), width = 9, height = 4.5)
 
 # What if we vary the baseline rate as well -------------------------------
 controlrates <- data.frame(
@@ -205,6 +206,7 @@ plotb_base <- filter(sample_n3, n < 1e4) |>
        subtitle = "\n\n\n\n") +
   coord_flip()
 plotb_base
+# build plots for HFA presentation
 ggsave(here("output/fairhf2/samplesizeplot_build0.pdf"), width = 7, height = 4)
 
 # add the points
@@ -249,14 +251,5 @@ plotb_2 +
     caption = "Capped at n = 10,000 for display purposes\nOver the full range of possible combinations of RR and baseline rate, the average trial size was 3,812 (50% CrI; 2,476-6,328)\nOnly 1.4% of our simulations resulted in a trial size of 1,000 or fewer."
   )
 ggsave(here("output/fairhf2/samplesizeplot_build4_V2.pdf"), width = 7, height = 4)
-
-tidybayes::median_qi(sample_n3$n, .width = 0.5)
-tidybayes::median_qi(sample_n3$n, .width = 0.95)
-
-
-#
-filter(sample_n3, n < 1e4) |> 
-  ggplot(aes(x = controlrate, y= n_capped)) +
-  #scale_x_continuous(limits = c(0.56, 0.91)) +
-  geom_point(data = ~sample_n(.x, 1e4), alpha = 0.1) 
+ggsave(here("output/fairhf2/samplesizeplot_build4_V2.tiff"), width = 7, height = 4)
   
