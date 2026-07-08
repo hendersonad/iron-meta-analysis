@@ -20,7 +20,7 @@ library(ggsci)
 fs::dir_create(here("output/fairhf2"))
 fs::dir_create(here("brmsfits/fairhf2"))
 
-source(here::here("iron_data_fairhf2.R"))
+source(here::here("code/0_dataprep/iron_data_fairhf2.R"))
 iron_rec_cnpt |> select(starts_with("n")) |> summarise(across(everything(), sum))
 
 # plot the estimates ------------------------------------------------------
@@ -57,6 +57,7 @@ all_estimates <- ggplot(all_iron_estimates, aes(x = estimate, xmin = lci, xmax =
 all_estimates
 
 ggsave(all_estimates, filename = here::here("output/fairhf2/fig1_trial_estimates.pdf"), width = 8 , height = 6, units = "in")
+ggsave(all_estimates, filename = here::here("output/fairhf2/fig1_trial_estimates.tiff"), width = 8 , height = 6, units = "in")
 
 ## 
 segment_map <- all_estimates + 
@@ -74,6 +75,7 @@ segment_map <- all_estimates +
     col = "#999999"
   )
 ggsave(segment_map, filename = here::here("output/fairhf2/fig1_trial_estimates_segments.pdf"), width = 9.5  , height = 4, units = "in")
+ggsave(segment_map, filename = here::here("output/fairhf2/fig1_trial_estimates_segments.tiff"), width = 9.5  , height = 4, units = "in")
 
 
 ## set 1
@@ -89,11 +91,12 @@ sets_iron_estimates <- all_iron_estimates |>
   )
 all_estimates %+% mutate(sets_iron_estimates, across(where(is.numeric), ~case_when(set1 ~ .x, .default = NA)))
 ggsave(filename = here::here("output/fairhf2/fig1_trial_estimates_set1.pdf"), width = 9  , height = 4, units = "in")
+ggsave(filename = here::here("output/fairhf2/fig1_trial_estimates_set1.tiff"), width = 9  , height = 4, units = "in")
 
 all_estimates %+% mutate(sets_iron_estimates, across(where(is.numeric), ~case_when(set2 ~ .x, .default = NA)))
 ggsave(filename = here::here("output/fairhf2/fig1_trial_estimates_set2.pdf"), width = 9  , height = 4, units = "in")
+ggsave(filename = here::here("output/fairhf2/fig1_trial_estimates_set2.tiff"), width = 9  , height = 4, units = "in")
 
 all_estimates %+% mutate(sets_iron_estimates, across(where(is.numeric), ~case_when(set3 ~ .x, .default = NA)))
 ggsave(filename = here::here("output/fairhf2/fig1_trial_estimates_set3.pdf"), width = 9  , height = 4, units = "in")
-
-  
+ggsave(filename = here::here("output/fairhf2/fig1_trial_estimates_set3.tiff"), width = 9  , height = 4, units = "in")

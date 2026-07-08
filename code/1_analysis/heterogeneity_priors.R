@@ -5,7 +5,7 @@ library(tidybayes)
 library(here)
 library(cowplot)
 
-source(here::here("iron_data.R"))
+source(here::here("code/0_dataprep/iron_data.R"))
 ##
 fs::dir_create(here("brmsfits"))
 
@@ -132,6 +132,7 @@ prior_dist <- bind_rows(
 
 prior_dist
 ggsave(prior_dist, filename = here("output/fig6_tau_scale_priors.pdf"), width = 3, height = 2)
+ggsave(prior_dist, filename = here("output/fig6_tau_scale_priors.tiff"), width = 3, height = 2)
 
 # pretty rug spread -------------------------------------------------------
 rugplot <- tibble(
@@ -178,3 +179,4 @@ plot_grid(
 )
 
 ggsave(filename = here("output/fig6b_tau_choices.pdf"), width = 9, height = 4, dpi = 300)
+ggsave(filename = here("output/fig6b_tau_choices.tiff"), width = 9, height = 4, dpi = 300)
