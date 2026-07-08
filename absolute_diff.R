@@ -5,7 +5,7 @@ library(tidybayes)
 library(here)
 
 theme_set(
-  ggthemes::theme_few(base_size = 9) +
+  ggthemes::theme_few(base_size = 11) +
     theme(plot.title = element_text(face = "bold"))
 )
 
@@ -140,15 +140,15 @@ set.seed(2134)
 ratediff_plot <- ratediffs |> 
   group_by(controlrate) |> 
   sample_n(100) |> 
-  select(-name, `Placebo` = controlrate, `IV iron` = value, `Rate difference` = ratediff) |> 
+  select(-name, `Control` = controlrate, `IV iron` = value, `Rate difference` = ratediff) |> 
   pivot_longer(where(is.numeric)) |> 
-  mutate(name = factor(name, levels = c("Placebo", "IV iron", "Rate difference"))) |> 
+  mutate(name = factor(name, levels = c("Control", "IV iron", "Rate difference"))) |> 
   ggplot(aes(x = name, y = value, group = name, fill = name)) +
   geom_hline(yintercept = 0, lty = 3, col = "#999999") +
   geom_point(data = ~group_by(.x, name) |> slice(1), col = "white") +
-  geom_violin(data = ~filter(.x, name != "Placebo")) +
-  geom_violin(data = ~filter(.x, name == "Placebo") |> group_by(value) |> slice(1)) +
-  scale_x_discrete(breaks = c("Placebo", "IV iron", "Rate difference")) +
+  geom_violin(data = ~filter(.x, name != "Control")) +
+  geom_violin(data = ~filter(.x, name == "Control") |> group_by(value) |> slice(1)) +
+  scale_x_discrete(breaks = c("Control", "IV iron", "Rate difference")) +
   ggokabeito::scale_fill_okabe_ito() + 
   labs(
     title = "Estimated absolute benefit of IV iron",
@@ -171,7 +171,9 @@ ratediff_plot <- ratediffs |>
 ratediff_plot
 
 ggsave(ratediff_plot, filename = here("output/fairhf2/estimated_absolute_benefit.pdf"), width = 6, height = 4)
+ggsave(ratediff_plot, filename = here("output/fairhf2/estimated_absolute_benefit.tiff"), width = 6, height = 4)
 
 cowplot::plot_grid(placebo_inputs, ratediff_plot, labels = "AUTO", ncol = 1)
 ggsave(filename = here("output/fairhf2/estimated_benefits_combined.pdf"), width = 5.5, height = 9)
+ggsave(filename = here("output/fairhf2/estimated_benefits_combined.tiff"), width = 5.5, height = 9)
 
