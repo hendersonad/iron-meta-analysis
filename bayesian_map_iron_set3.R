@@ -21,7 +21,7 @@ library(ggsci)
 fs::dir_create(here("output/fairhf2_set3"))
 fs::dir_create(here("brmsfits/fairhf2_set3"))
 
-source(here::here("iron_data_fairhf2.R"))
+source(here::here("code/0_dataprep/iron_data_fairhf2.R"))
 iron_rec_cnpt |> select(starts_with("n")) |> summarise(across(everything(), sum))
 
 iron_rec_cnpt <- iron_rec_cnpt |> filter(trial %in% c("IRONMAN", "HEART-FID", "FAIR-HF2"))
@@ -136,6 +136,7 @@ funnel_plot <- funnel_data |>
   theme(legend.position = "none")
 funnel_plot
 ggsave(funnel_plot, filename = here("output/fairhf2_set3/fig4_funnelplot.pdf"), width = 5, height = 7)
+ggsave(funnel_plot, filename = here("output/fairhf2_set3/fig4_funnelplot.tiff"), width = 5, height = 7)
 
 # Bayesian meta analyses with brms --------------------------------------------------
 ## random effects
@@ -383,6 +384,7 @@ cowplot::plot_grid(
   labels = levels(all_iron_estimates$outcome), label_size = 8, hjust = -0.1
 ) 
 ggsave(filename = here::here("output/fairhf2_set3/fig2_all_forest.pdf"), width = 12, height = 7, units = "in")
+ggsave(filename = here::here("output/fairhf2_set3/fig2_all_forest.tiff"), width = 12, height = 7, units = "in")
 
 # summarising tau estimates -----------------------------------------------
 number_to_character_output <- function(df){
@@ -597,4 +599,6 @@ plot_grid(
   fp1, fp2, fp3, ncol = 3
 )
 ggsave(here::here("output/fairhf2_set3/fig3_iron_tau_forestplots.pdf"), width = 14, height = 4.5, units = "in")
+ggsave(here::here("output/fairhf2_set3/fig3_iron_tau_forestplots.tiff"), width = 14, height = 4.5, units = "in")
 iron_rec_cnpt
+
