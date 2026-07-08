@@ -118,14 +118,15 @@ prior_dist <- bind_rows(
   parse_dist(prior(normal(0, 0.05), class="sd", lb = 0, group="trial"))
 ) |> 
   mutate(tau = factor(c(0.5, 0.125, 0.05))) |> 
-  ggplot(aes(y = 0, group = tau, slab_colour = tau, dist = .dist, args = .args)) + 
-  stat_dist_halfeye(linewidth = 1.2, col = NA, fill = alpha("gray70", 0.4)) +
+  ggplot(aes(y = tau, group = tau, dist = .dist, args = .args)) + 
+  stat_dist_halfeye(linewidth = 1.2, col = NA, fill = "gray60") +
   xlim(c(0, NA)) +
   ggokabeito::scale_colour_okabe_ito(aesthetics = "slab_colour") + 
-  labs(x = bquote(heterogeneity (tau)), y = "probability density", slab_colour = bquote(tau[sigma] ~ prior)) +
-  scale_y_continuous(limits = c(0, NA)) + 
+  labs(x = "", y = bquote(tau[sigma] ~ prior)) +
+  #scale_y_continuous(limits = c(0, NA)) + 
   ggthemes::theme_few(base_size = 7) +
   theme(
+    axis.title.y = element_text(size = 10, angle = 0, vjust = 0.5),
     legend.position = "inside", 
     legend.position.inside = c(0.7, 0.5)
     ) 
