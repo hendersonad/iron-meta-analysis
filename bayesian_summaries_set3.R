@@ -15,7 +15,7 @@ library(scales)
 library(ggsci)
 library(purrr)
 
-source(here::here("iron_data_fairhf2.R"))
+source(here::here("code/0_dataprep/iron_data_fairhf2.R"))
 
 iron_rec_cnpt <- iron_rec_cnpt |> filter(trial %in% c("IRONMAN", "HEART-FID", "FAIR-HF2"))
 iron_rec_hfh <- iron_rec_hfh |> filter(trial %in% c("IRONMAN", "HEART-FID", "FAIR-HF2"))
@@ -164,3 +164,4 @@ ggplot(all_bayes_trt_effects, aes(x = avg_effect, y =forcats::fct_rev(outcome), 
     axis.text.y = element_text(hjust = 0)
   )
 ggsave(here::here("output/fairhf2_set3/fig4_iron_bayesian_trt_effects_low_hetero.pdf"), width = 6, height = 6, units = "in")
+ggsave(here::here("output/fairhf2_set3/fig4_iron_bayesian_trt_effects_low_hetero.tiff"), width = 6, height = 6, units = "in")

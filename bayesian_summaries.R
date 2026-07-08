@@ -15,7 +15,7 @@ library(scales)
 library(ggsci)
 library(purrr)
 
-source(here::here("iron_data_fairhf2.R"))
+source(here::here("code/0_dataprep/iron_data_fairhf2.R"))
 
 load_brms_fits <- function(input_data){
   name <- stringr::str_replace_all(stringr::str_to_lower(input_data$outcome[1]), " ", "_")
@@ -159,11 +159,12 @@ ggplot(all_bayes_trt_effects, aes(x = avg_effect, y = forcats::fct_rev(outcome),
   )
 
 ggsave(here::here("output/fairhf2/fig4_iron_bayesian_trt_effects.pdf"), width = 6, height = 6, units = "in")
+ggsave(here::here("output/fairhf2/fig4_iron_bayesian_trt_effects.tiff"), width = 6, height = 6, units = "in")
 
 
 
 
-# some bastardisations of the plot for HFA slides -------------------------
+# some alterations of the plot for HFA slides -------------------------
 set.seed(32532)
 all_bayes_trt_effects |> 
   mutate(columns = ifelse(str_detect(outcome, "HFH"), 1, 2)) |> 
