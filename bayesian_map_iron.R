@@ -19,7 +19,7 @@ library(ggsci)
 
 fs::dir_create(here("output"))
 
-source(here::here("iron_data.R"))
+source(here::here("code/0_dataprep/iron_data.R"))
 iron_rec_cnpt |> select(starts_with("n")) |> summarise(across(everything(), sum))
 
 # plot the estimates ------------------------------------------------------
@@ -50,6 +50,7 @@ all_estimates <- ggplot(all_iron_estimates, aes(x = estimate, xmin = lci, xmax =
         strip.text = element_text(hjust = 0))
 
 ggsave(all_estimates, filename = here::here("output/fig1_trial_estimates.pdf"), width = 9  , height = 4, units = "in")
+ggsave(all_estimates, filename = here::here("output/fig1_trial_estimates.tiff"), width = 9  , height = 4, units = "in")
 
 
 ggplot(all_iron_estimates, aes(x = estimate, xmin = lci, xmax = uci, y = fct_rev(trial), group = trial)) +
@@ -68,6 +69,7 @@ ggplot(all_iron_estimates, aes(x = estimate, xmin = lci, xmax = uci, y = fct_rev
         strip.text = element_text(hjust = 0, face = "bold", size = 14))
 
 ggsave(filename = here::here("output/hfa_figures/fig1_trial_estimates.pdf"), width = 7, height = 3, units = "in")
+ggsave(filename = here::here("output/hfa_figures/fig1_trial_estimates.tiff"), width = 7, height = 3, units = "in")
 
 # Frequentist meta analyses -----------------------------------------------
 do_frequentist_style <- function(
@@ -320,6 +322,7 @@ plot_rec_cnpt[[8]]
 plot_rec_cnpt[[9]]
 
 ggsave(plot_rec_cnpt[[8]], filename = here::here("output/fig2a_forest_rec_cnpt.pdf"), width = 3, height = 4, units = "in")
+ggsave(plot_rec_cnpt[[8]], filename = here::here("output/fig2a_forest_rec_cnpt.tiff"), width = 3, height = 4, units = "in")
 
 # for abstract submission
 ggsave(plot_rec_cnpt[[8]], filename = here::here("output/iron_abstract_combined.jpeg"), width = 820*0.5 , height = 1080*0.5, units = "px", scale = 2)
@@ -329,6 +332,7 @@ cowplot::plot_grid(
   labels = levels(all_iron_estimates$outcome), label_size = 8, hjust = -0.1, align = "v"
 ) 
 ggsave(filename = here::here("output/fig2_all_forest.pdf"), width = 12, height = 7, units = "in")
+ggsave(filename = here::here("output/fig2_all_forest.tiff"), width = 12, height = 7, units = "in")
 
 # summarising tau estimates -----------------------------------------------
 number_to_character_output <- function(df){
@@ -507,6 +511,7 @@ plot_grid(
   fp1, fp2, fp3, ncol = 3
 )
 ggsave(here::here("output/fig3_iron_tau_forestplots.pdf"), width = 14, height = 4.5, units = "in")
+ggsave(here::here("output/fig3_iron_tau_forestplots.tiff"), width = 14, height = 4.5, units = "in")
 iron_rec_cnpt
 
 
@@ -707,3 +712,4 @@ out_all |>
   ggthemes::theme_few()
 
 ggsave(here::here("output/fig3_iron_tau_prediction_comparison.pdf"), width = 6, height = 4.5, units = "in")
+ggsave(here::here("output/fig3_iron_tau_prediction_comparison.tiff"), width = 6, height = 4.5, units = "in")
