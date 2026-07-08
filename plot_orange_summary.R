@@ -2,7 +2,7 @@ library(tidyverse)
 library(brms)
 library(tidybayes)
 
-source(here::here("iron_data_fairhf2.R"))
+source(here::here("code/0_dataprep/iron_data_fairhf2.R"))
 iron_rec_cnpt <- iron_rec_cnpt |> filter(trial %in% c("IRONMAN", "HEART-FID", "FAIR-HF2"))
 brms_object <- readRDS(here::here("brmsfits/fairhf2_set3/total_hfh_and_cv_death_0.125.rds"))
 
@@ -89,6 +89,7 @@ out_all |>
   ggthemes::theme_few()
 
 ggsave(here::here("output/fairhf2_set3/fig3_orange_summary.pdf"), width = 6, height = 4.5, units = "in")
+ggsave(here::here("output/fairhf2_set3/fig3_orange_summary.tiff"), width = 6, height = 4.5, units = "in")
 
 
 
@@ -125,3 +126,4 @@ out_all |>
 
 ggsave(here::here("output/fairhf2_set3/fig3_orange_summary_nopredicted.pdf"), width = 6, height = 4.5, units = "in")
 ggsave(here::here("output/fairhf2_set3/fig3_orange_summary_nopredicted.jpeg"), width = 6, height = 4.5, units = "in")
+ggsave(here::here("output/fairhf2_set3/fig3_orange_summary_nopredicted.tiff"), width = 6, height = 4.5, units = "in")
