@@ -25,6 +25,3 @@ Other files are avialble for:
 
 ### 2_plotting
 `bayesian_summaries.R` produces plots of the posterior probabilities of various treatment effects of clinical importance. Also plots estimates from the various Bayesian and frequentist methods employed.
-
-## License
-...
