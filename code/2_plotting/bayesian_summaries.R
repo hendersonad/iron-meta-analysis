@@ -134,17 +134,29 @@ post_probs <- map(
       (num_to_printchar(post_prob, ndig = 3) == "1.00" ~ "> 99.999%"), 
       .default = paste("=", num_to_printchar(post_prob*100, ndig = 1))),
     nice_lab = paste0(hypothesis, " ", nice_p)
-  )
+  ) |> 
+  filter(outcome != "Time to CV death or HFH")
 post_probs
 
-ggplot(all_bayes_trt_effects, aes(x = avg_effect, y = forcats::fct_rev(outcome), color = after_stat(x<1))) + 
+
+all_bayes_trt_effects |> 
+  filter(outcome != "Time to CV death or HFH") |> 
+  ggplot(aes(x = avg_effect, y = forcats::fct_rev(outcome), color = after_stat(x<1))) + 
   geom_vline(xintercept = 1, lty = 3, alpha = 0.5) +
   geom_dots(data = ~sample_n(.x, 5000)) +
   stat_halfeye(color = NA, slab_fill = NA, slab_colour = "black", .width = 0.95) + 
-  geom_text(col = 1, data = avg_effects, aes(label = nice_est, x = 1.3), nudge_y = 0.5, size.unit = "pt", size = 7, hjust = 0) +
+  geom_text(
+    col = 1,
+    data = filter(avg_effects, outcome != "Time to CV death or HFH"),
+    aes(label = nice_est, x = 1.3),
+    nudge_y = 0.5,
+    size.unit = "pt",
+    size = 7,
+    hjust = 0
+  ) +
   #
-  geom_label(fill = "white", color = "black", data = filter(post_probs, hypothesis == "P(RR)>1.0"), aes(label = nice_lab, x = 1.3), nudge_y = 0.3, size.unit = "pt", size = 7, hjust = 0) +
-  geom_label(fill = "white", color = "black", data = filter(post_probs, hypothesis == "P(RR)<1.0"), aes(label = nice_lab, x = 1.3), nudge_y = 0.1, size.unit = "pt", size = 7, hjust = 0) +
+  # geom_label(fill = "white", color = "black", data = filter(post_probs, hypothesis == "P(RR)>1.0"), aes(label = nice_lab, x = 1.3), nudge_y = 0.3, size.unit = "pt", size = 7, hjust = 0) +
+  # geom_label(fill = "white", color = "black", data = filter(post_probs, hypothesis == "P(RR)<1.0"), aes(label = nice_lab, x = 1.3), nudge_y = 0.1, size.unit = "pt", size = 7, hjust = 0) +
   geom_label(fill = "white", color = "black", data = filter(post_probs, hypothesis == "P(RR)<0.9"), aes(label = nice_lab, x = 0.9), nudge_y = -0.1, size.unit = "pt", size = 7, hjust = 0) +
   geom_label(fill = "white", color = "black", data = filter(post_probs, hypothesis == "P(RR)<0.8"), aes(label = nice_lab, x = 0.85), nudge_y = -0.1, size.unit = "pt", size = 7, hjust = 1) +
   #
