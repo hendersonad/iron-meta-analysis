@@ -153,7 +153,6 @@ ratediff_plot <- ratediffs |>
   ggokabeito::scale_fill_okabe_ito() + 
   labs(
     title = "Estimated absolute benefit of IV iron",
-    subtitle = "Estimated rate of CV death and HF hospitalisations in a placebo group, and a group\ntreated with IV iron calculated using the estimated RR from our Bayesian meta-analysis",
     fill = "",
     y = "Rate per 100 person-years",
     x = ""
