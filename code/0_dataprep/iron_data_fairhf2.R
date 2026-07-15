@@ -58,7 +58,7 @@ make_iron_data <- function(estimate, lci, uci, heartfid96ci = FALSE){
 iron_rec_cnpt <- make_iron_data(
   estimate = c(0.46, 0.51, 0.76, 0.82, 0.96, 0.80),
   lci = c(0.18, 0.28, 0.60, 0.66, 0.82, 0.62),
-  uci = c(1.19, 0.95, 0.96, 1.02, 1.11, 1.04)
+  uci = c(1.19, 0.95, 0.96, 1.02, 1.11, 1.03)
 ) |> 
   mutate(outcome = "Total HFH and CV death")
 iron_rec_cnpt
