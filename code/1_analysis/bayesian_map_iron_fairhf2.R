@@ -26,13 +26,14 @@ iron_rec_cnpt
 
 # plot the estimates ------------------------------------------------------
 all_iron_estimates <- bind_rows(
-  iron_rec_cnpt, iron_rec_hfh, iron_tte_cvd, iron_tte_acm
+  iron_rec_cnpt, iron_rec_hfh, iron_tte_cvd, iron_tte_acm, iron_tte_cnpt
   ) |>
   mutate(outcome = factor(
     outcome, 
     levels = c(
       "Total HFH and CV death",
       "Total HFH",
+      "Time to CV death or HFH",
       "Time to CV death",
       "Time to death"
       )
@@ -46,7 +47,7 @@ all_estimates <- ggplot(all_iron_estimates, aes(x = estimate, xmin = lci, xmax =
   geom_text(aes(label = formatC(uci, format = "f", width = 3, flag = "0", digits = 2), x = uci), nudge_y = -0.2, size = 7, size.unit = "pt") + 
   geom_text(aes(label = formatC(estimate, format = "f", width = 3, flag = "0", digits = 2), x = estimate), nudge_y = 0.2, size = 7, size.unit = "pt") + 
   geom_point(size = 1.5, pch = 16) +
-  facet_wrap(~outcome, ncol = 2) +
+  facet_wrap(~outcome, ncol = 1) +
   scale_x_continuous(limits = c(0.11, 2.5), breaks = c(0.5, 1.0, 2.0), transform = "log") +
   labs(y = "", x = "RR/HR*", caption = "* RR for recurrent events, HR for time to first") +
   ggthemes::theme_few(base_size = 7) +
@@ -54,8 +55,8 @@ all_estimates <- ggplot(all_iron_estimates, aes(x = estimate, xmin = lci, xmax =
         plot.title.position = "plot",
         strip.text = element_text(hjust = 0))
 
-ggsave(all_estimates, filename = here::here("output/fairhf2/fig1_trial_estimates.pdf"), width = 6  , height = 5, units = "in")
-ggsave(all_estimates, filename = here::here("output/fairhf2/fig1_trial_estimates.tiff"), width = 6  , height = 5, units = "in")
+ggsave(all_estimates, filename = here::here("output/fairhf2/fig1_trial_estimates.pdf"), width = 3  , height = 8, units = "in")
+ggsave(all_estimates, filename = here::here("output/fairhf2/fig1_trial_estimates.tiff"), width = 3  , height = 8, units = "in")
 
 meta::metagen(
   TE = iron_tte_cvd$lrr,
@@ -105,6 +106,7 @@ freq_rec_cnpt <- do_frequentist_style(iron_rec_cnpt, label = "RR")
 freq_rec_hfh <- do_frequentist_style(iron_rec_hfh, label = "RR")
 freq_tte_cvd <- do_frequentist_style(iron_tte_cvd, label = "HR")
 freq_tte_acm <- do_frequentist_style(iron_tte_acm, label = "HR")
+freq_tte_cnpt <- do_frequentist_style(iron_tte_cnpt, label = "HR")
 
 # funnel plot  ------------------------------------------------------------
 # Plot
@@ -113,6 +115,7 @@ funnel_data <- all_iron_estimates |>
     reff_est = case_when(
       outcome == "Total HFH and CV death" ~ freq_rec_cnpt$TE.fixed,
       outcome == "Total HFH" ~ freq_rec_hfh$TE.fixed,
+      outcome == "Time to CV death or HFH" ~ freq_tte_cnpt$TE.fixed,
       outcome == "Time to CV death" ~ freq_tte_cvd$TE.fixed,
       outcome == "Time to death" ~ freq_tte_acm$TE.fixed
     )
@@ -131,13 +134,14 @@ funnel_plot <- funnel_data |>
   #geom_text(aes(label = trial), col = 1, vjust = "inward", hjust = "inward", check_overlap = TRUE, size = 6, size.unit = "pt") +
   ggrepel::geom_text_repel(aes(label = trial), col = 1, size = 2) +
   scale_y_reverse() +
-  facet_wrap(~outcome, ncol = 2, scales = "free_y") + 
+  facet_wrap(~outcome, ncol = 1, scales = "free_y") + 
   ggthemes::theme_few(base_size = 9.5) +
   labs(y = "Std. Err.", x = "(log) effect estimate (RR/HR)", colour = "") + 
   theme(legend.position = "none")
+
 funnel_plot
-ggsave(funnel_plot, filename = here("output/fairhf2/fig4_funnelplot.pdf"), width = 4, height = 4)
-ggsave(funnel_plot, filename = here("output/fairhf2/fig4_funnelplot.tiff"), width = 4, height = 4)
+ggsave(funnel_plot, filename = here("output/fairhf2/fig4_funnelplot.pdf"), width = 3, height = 8)
+ggsave(funnel_plot, filename = here("output/fairhf2/fig4_funnelplot.tiff"), width = 3, height = 8)
 
 # Bayesian meta analyses with brms --------------------------------------------------
 ## random effects
@@ -180,6 +184,7 @@ do_bayesian_taus <- function(input_data){
 datasets <- list(
   iron_rec_cnpt,
   iron_rec_hfh,
+  iron_tte_cnpt,
   iron_tte_cvd,
   iron_tte_acm
 )
@@ -187,8 +192,9 @@ bayesian_fits <- purrr::map(datasets, .f = do_bayesian_taus)
 
 bayes_rec_cnpt <- bayesian_fits[[1]]
 bayes_rec_hfh <- bayesian_fits[[2]]
-bayes_tte_cvd <- bayesian_fits[[3]]
-bayes_tte_acm <- bayesian_fits[[4]]
+bayes_tte_cnpt <- bayesian_fits[[3]]
+bayes_tte_cvd <- bayesian_fits[[4]]
+bayes_tte_acm <- bayesian_fits[[5]]
 
 # combine the brms estimates ----------------------------------------------
 combine_brms_out <- function(model_list){
@@ -196,42 +202,44 @@ combine_brms_out <- function(model_list){
   model2 <- model_list$ranef_brms_0pt125
   model3 <- model_list$ranef_brms_0pt05
   
+  draws1 <- as_draws_df(model1)
+  draws2 <- as_draws_df(model2)
+  draws3 <- as_draws_df(model3)
+  
   ## get tau estiamtes
   bayes_est <- dplyr::bind_cols(
     tau = paste0("Tau scale = ", c(0.5, 0.125, 0.05)),
     dplyr::bind_rows(
-      as.data.frame(exp(fixef(model1))),
-      as.data.frame(exp(fixef(model2))),
-      as.data.frame(exp(fixef(model3)))
+      as.data.frame(median_qi(exp(draws1$b_Intercept))),
+      as.data.frame(median_qi(exp(draws2$b_Intercept))),
+      as.data.frame(median_qi(exp(draws3$b_Intercept)))
     )
   ) |> 
-    janitor::clean_names() |>
-    dplyr::rename(lci = q2_5, uci = q97_5)
+    janitor::clean_names()
   rownames(bayes_est) <- NULL
   
   ## export estimates of tau
-  get_tau <- function(mod){
-    as.data.frame(summary(mod)$random$trial) |> 
-      janitor::clean_names() |> 
-      select(estimate, lci = l_95_percent_ci, uci = u_95_percent_ci, tau_rhat = rhat)
-  }
   tau_est <- dplyr::bind_cols(
     tau = paste0("Tau scale = ", c(0.5, 0.125, 0.05)),
     dplyr::bind_rows(
-      get_tau(model1),
-      get_tau(model2),
-      get_tau(model3)
+      median_qi(draws1$sd_trial__Intercept),
+      median_qi(draws2$sd_trial__Intercept),
+      median_qi(draws3$sd_trial__Intercept)
     )
-  ) 
+  ) |> 
+    janitor::clean_names()
   rownames(tau_est) <- NULL
   
-  return(list(bayes_est = bayes_est, tau_est = tau_est))
+  bind_rows(bayes_est, tau_est) |> 
+    mutate(parameter = c(rep("beta", 3), rep("tau", 3))) |> 
+    rename(estimate = y, lci = ymin, uci = ymax)
 }
 
-bayes_estimates <- purrr::map(bayesian_fits, combine_brms_out)
+bayes_estimates <- purrr::map(bayesian_fits, combine_brms_out) 
 
 outcome_vector <- rep(levels(all_iron_estimates$outcome), each = 3)
 all_bayes_estimates <- bind_rows(bayes_estimates) |> 
+  filter(parameter == "beta") |> 
   mutate(outcome = factor(outcome_vector, levels = levels(all_iron_estimates$outcome))) |> 
   janitor::clean_names()
 
@@ -280,19 +288,17 @@ plot_results <- function(df, freq_fit, bayes_fit, rr_or_hr){
   # grob the table 
   data_subset <- select(df, result = trial, estimate, lci, uci)
   freq_subset <- select(freq_ef, result = lab, everything())
-  bayes_subset <- select(bayes_fit, result = tau, -est_error, estimate, lci, uci)
+  bayes_subset <- select(bayes_fit, result = tau, estimate, lci, uci)
   
   make_table <- function(datain){
     datain |>
-      mutate(across(where(is.numeric), ~formatC(., format = "f", digits = 2, width = 4, flag = "0"))) |> 
+      mutate(across(where(is.numeric), ~formatC(.x, format = "f", digits = 2, width = 4, flag = "0"))) |> 
       mutate(txt_result = paste0(estimate, " (", lci, " - ", uci, ")")) |> 
       select(Source = result, `RR (95% CI or CrI)` = txt_result) |> 
       flextable::flextable(cwidth = 1.5) |>
       flextable::align(align = "right", j = 2, part = "all") |> 
       flextable::gen_grob(fit = "auto", just = "centre")
   }
-  
-  
   a <- make_table(data_subset) 
   b <- make_table(freq_subset) 
   c <- make_table(bayes_subset)
@@ -303,7 +309,6 @@ plot_results <- function(df, freq_fit, bayes_fit, rr_or_hr){
     align = "v",
     rel_heights = c(4, 2, 3)
   )
-  
   plot_data <- function(datain){
     datain |> 
       mutate(across(where(is.numeric), ~formatC(., format = "f", digits = 2, width = 4, flag = "0"))) |> 
@@ -355,23 +360,23 @@ plot_results <- function(df, freq_fit, bayes_fit, rr_or_hr){
   
   return(list(panel_a, a, panel_b, b, panel_c, c, abstract, plot_combined, just_the_pooled_numbers))
 }
-plot_rec_cnpt <- plot_results(df = iron_rec_cnpt, freq_fit = freq_rec_cnpt, bayes_fit = bayes_estimates[[1]]$bayes_est, rr_or_hr = "RR")
+plot_rec_cnpt <- plot_results(df = iron_rec_cnpt, freq_fit = freq_rec_cnpt, bayes_fit = bayes_estimates[[1]]|>filter(parameter == "beta"), rr_or_hr = "RR")
 plot_rec_cnpt[[9]]
 plot_rec_cnpt[[8]]
 
-
-plot_rec_hfh <- plot_results(df = iron_rec_hfh, freq_fit = freq_rec_hfh, bayes_fit = bayes_estimates[[2]]$bayes_est, rr_or_hr = "RR")
-plot_tte_cvd <- plot_results(df = iron_tte_cvd, freq_fit = freq_tte_cvd, bayes_fit = bayes_estimates[[3]]$bayes_est, rr_or_hr = "HR")
-plot_tte_acm <- plot_results(df = iron_tte_acm, freq_fit = freq_tte_acm, bayes_fit = bayes_estimates[[4]]$bayes_est, rr_or_hr = "HR")
+plot_rec_hfh <- plot_results(df = iron_rec_hfh, freq_fit = freq_rec_hfh, bayes_fit = bayes_estimates[[2]]|>filter(parameter == "beta"), rr_or_hr = "RR")
+plot_tte_cnpt <- plot_results(df = iron_tte_cnpt, freq_fit = freq_tte_cnpt, bayes_fit = bayes_estimates[[3]]|>filter(parameter == "beta"), rr_or_hr = "HR")
+plot_tte_cvd <- plot_results(df = iron_tte_cvd, freq_fit = freq_tte_cvd, bayes_fit = bayes_estimates[[4]]|>filter(parameter == "beta"), rr_or_hr = "HR")
+plot_tte_acm <- plot_results(df = iron_tte_acm, freq_fit = freq_tte_acm, bayes_fit = bayes_estimates[[5]]|>filter(parameter == "beta"), rr_or_hr = "HR")
 
 ## plots for HFA slides with zoomed numbers
 ggsave(plot_rec_cnpt[[9]] + labs(title = "Total HFH and CV death"), filename = here::here("output/hfa_figures/primary_pooled.pdf"), width = 6, height = 4, units = "in")
 ggsave(plot_tte_cvd[[9]], filename = here::here("output/hfa_figures/cvd_pooled.pdf"), width = 6, height = 4, units = "in")
 
-
 ## output all the total estimate panels
 ggsave(plot_rec_cnpt[[8]], filename = here::here("output/fairhf2/fig2a_forest_rec_cnpt.pdf"), width = 3, height = 4, units = "in")
 ggsave(plot_rec_hfh[[8]], filename = here::here("output/fairhf2/fig2b_forest_rec_hfh.pdf"), width = 3, height = 4, units = "in")
+ggsave(plot_tte_cnpt[[8]], filename = here::here("output/fairhf2/fig2d_forest_tte_cnpt.pdf"), width = 3, height = 4, units = "in")
 ggsave(plot_tte_cvd[[8]], filename = here::here("output/fairhf2/fig2d_forest_tte_cvd.pdf"), width = 3, height = 4, units = "in")
 ggsave(plot_tte_acm[[8]], filename = here::here("output/fairhf2/fig2e_forest_tte_acm.pdf"), width = 3, height = 4, units = "in")
 
@@ -381,12 +386,14 @@ ggsave(plot_rec_cnpt[[8]], filename = here::here("output/fairhf2/iron_abstract_c
 cowplot::plot_grid(
   plot_rec_cnpt[[9]], 
   plot_rec_hfh[[9]],
+  plot_tte_cnpt[[9]],
   plot_tte_cvd[[9]],
   plot_tte_acm[[9]],
-  labels = levels(all_iron_estimates$outcome), label_size = 8, hjust = -0.1
+  labels = levels(all_iron_estimates$outcome), label_size = 8, hjust = -0.1,
+  ncol = 2
 ) 
-ggsave(filename = here::here("output/fairhf2/fig2_all_forest.pdf"), width = 12, height = 7, units = "in")
-ggsave(filename = here::here("output/fairhf2/fig2_all_forest.tiff"), width = 12, height = 7, units = "in")
+ggsave(filename = here::here("output/fairhf2/fig2_all_forest.pdf"), width = 10, height = 10, units = "in")
+ggsave(filename = here::here("output/fairhf2/fig2_all_forest.tiff"), width = 10, height = 10, units = "in")
 
 
 # summarising tau estimates -----------------------------------------------
@@ -412,9 +419,9 @@ number_to_character_output <- function(df){
       )
 }
 merge_bayesian_estimates <- function(listin){
-  number_to_character_output(listin$bayes_est) |> 
+  number_to_character_output(listin |> filter(parameter=="beta")) |> 
     bind_cols(
-      number_to_character_output(listin$tau_est)[2]
+      number_to_character_output(listin |> filter(parameter=="tau"))[2]
     ) 
 } 
 
@@ -449,7 +456,7 @@ all_freq_results <- function(freq_fit){
     )
 }
 
-freq_summ <- purrr::map(list(freq_rec_cnpt, freq_rec_hfh, freq_tte_cvd, freq_tte_acm), all_freq_results) |> 
+freq_summ <- purrr::map(list(freq_rec_cnpt, freq_rec_hfh, freq_tte_cnpt, freq_tte_cvd, freq_tte_acm), all_freq_results) |> 
   bind_rows() |> 
   janitor::clean_names() |> 
   rename(tau = lab, trt_effect = summ_2, tau_estimate = summ_3) |> 
@@ -685,6 +692,7 @@ orange_summ_nopredict <- out_all |>
 
 orange_summ_nopredict
 ggsave(orange_summ_nopredict, filename = here::here("output/fairhf2/fig3_orange_summary_nopredict.pdf"), width = 6, height = 4.5, units = "in")
+
 ## without Predicted
 pooled_avg <- pull(out_all_sum[out_all_sum$trial == "Pooled", "b_Intercept"])
 orange_summ_nopredict <- out_all |> 
