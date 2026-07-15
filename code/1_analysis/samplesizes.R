@@ -80,7 +80,7 @@ estimatedrr <- readRDS(here("brmsfits/fairhf2/total_hfh_and_cv_death_0.125.rds")
 rrs <- brms::as_draws_df(estimatedrr, "b_Intercept") |> 
   pull(b_Intercept) |> 
   exp()
-
+rrs |> median_qi()
 get_samplesize <- function(rr, controlrate = 0.289){
   tryCatch({
     epiR::epi.sscohortt(
@@ -193,7 +193,8 @@ yest_cri50 <- median_qi(rrs, .width = 0.5) |> select(starts_with("y")) |> as.vec
 closest_values <- map(round(yest_cri50, 2), ~closest_to_target(sample_n3, .x)) |> bind_rows() |> arrange(-rr)
 
 nest <- tidybayes::median_qi(sample_n3$n, .width = 0.95)
-prob_1e4 <- round(100*sum(sample_n3$n <= 1000)/length(sample_n3$n), 1)
+nest_50 <- tidybayes::median_qi(sample_n3$n, .width = 0.5)
+prob_1e4 <- round(100*sum(sample_n3$n <= 1000)/length(sample_n3$n), 2)
 
 colors <- ghibli::ghibli_palette("MononokeMedium", type = "discrete")[c(5)]
 plotb_base <- filter(sample_n3, n < 1e4) |> 
@@ -213,7 +214,7 @@ ggsave(here("output/fairhf2/samplesizeplot_build0.pdf"), width = 7, height = 4)
 plotb_1 <- plotb_base +
   geom_point(data = ~sample_n(.x, 1e4), alpha = 0.01) +
   labs(
-    subtitle = "Frequentist sample size estimates given uncertainty in the treatment effect (RR, 0.82; 95%CrI: 0.69-0.95), and\nin the baseline rate (28.9 events per 100 person-years; 95% CrI: 24.4-31.1).\nEach estimate is a dot.\n\n"
+    subtitle = "Frequentist sample size estimates given uncertainty in the treatment effect (RR, 0.83; 95%CrI: 0.69-0.94), and\nin the baseline rate (28.9 events per 100 person-years; 95% CrI: 25.1-35.3).\nEach estimate is a dot.\n\n"
   )
 plotb_1
 ggsave(here("output/fairhf2/samplesizeplot_build1.pdf"), width = 7, height = 4)
@@ -225,7 +226,7 @@ plotb_2 <- plotb_1 +
   geom_label(data = closest_values, aes(x = rr, y = 250, label = paste(c("Q3","Median","Q1"), round(rr, 2), sep = ": ")), hjust = 0, color = colors, size = 7, size.unit = "pt") +
   geom_label(data = closest_values, aes(x = 0.6, y = n, label = scales::comma(n)), color = colors, size = 7, size.unit = "pt") +
   labs(
-    subtitle = "Frequentist sample size estimates given uncertainty in the treatment effect (RR, 0.82; 95%CrI: 0.69-0.95), and\nin the baseline rate (28.9 events per 100 person-years; 95% CrI: 24.4-31.1).\nEach estimate is a dot.\nExample sample sizes are shown in red for the median, lower and upper quartile estimates of the RR.\n"
+    subtitle = "Frequentist sample size estimates given uncertainty in the treatment effect (RR, 0.83; 95%CrI: 0.69-0.94), and\nin the baseline rate (28.9 events per 100 person-years; 95% CrI: 25.1-35.3).\nEach estimate is a dot.\nExample sample sizes are shown in red for the median, lower and upper quartile estimates of the RR.\n"
   )
 plotb_2
 ggsave(here("output/fairhf2/samplesizeplot_build2.pdf"), width = 7, height = 4)
@@ -234,21 +235,22 @@ ggsave(here("output/fairhf2/samplesizeplot_build2.pdf"), width = 7, height = 4)
 plotb_3 <- plotb_2 +
   geom_violin(fill = NA, aes(group = rr_group)) +
   labs(
-    subtitle = "Frequentist sample size estimates given uncertainty in the treatment effect (RR, 0.82; 95%CrI: 0.69-0.95), and\nin the baseline rate (28.9 events per 100 person-years; 95% CrI: 24.4-31.1).\nEach estimate is a dot.\nExample sample sizes are shown in red for the median, lower and upper quartile estimates of the RR.\nthe violins show the range of estimated sample size for a group of RRs"
+    subtitle = "Frequentist sample size estimates given uncertainty in the treatment effect (RR, 0.83; 95%CrI: 0.69-0.94), and\nin the baseline rate (28.9 events per 100 person-years; 95% CrI: 25.1-35.3).\nEach estimate is a dot.\nthe violins show the range of estimated sample size for a group of RRs"
   )
 plotb_3
 ggsave(here("output/fairhf2/samplesizeplot_build3.pdf"), width = 7, height = 4)
 
+nest
 plotb_4 <- plotb_3 + 
   labs(
-    caption = "Capped at n = 10,000 for display purposes\nOver the full range of possible combinations of RR and baseline rate, the average trial size was 3,812 (50% CrI; 2,476-6,328)\nOnly 1.4% of our simulations resulted in a trial size of 1,000 or fewer."
+    caption = "Capped at n = 10,000 for display purposes\nOver the full range of possible combinations of RR and baseline rate, the average trial size was 3,754 (50% CrI; 2,394-6,252)\nOnly 2% of our simulations resulted in a trial size of 1,000 or fewer."
   )
 plotb_4
 ggsave(here("output/fairhf2/samplesizeplot_build4.pdf"), width = 7, height = 4)
 
 plotb_2 +
   labs(
-    caption = "Capped at n = 10,000 for display purposes\nOver the full range of possible combinations of RR and baseline rate, the average trial size was 3,812 (50% CrI; 2,476-6,328)\nOnly 1.4% of our simulations resulted in a trial size of 1,000 or fewer."
+    caption = "Capped at n = 10,000 for display purposes\nOver the full range of possible combinations of RR and baseline rate, the average trial size was 3,754 (50% CrI; 2,394-6,252)\nOnly 2% of our simulations resulted in a trial size of 1,000 or fewer."
   )
 ggsave(here("output/fairhf2/samplesizeplot_build4_V2.pdf"), width = 7, height = 4)
 ggsave(here("output/fairhf2/samplesizeplot_build4_V2.tiff"), width = 7, height = 4)
