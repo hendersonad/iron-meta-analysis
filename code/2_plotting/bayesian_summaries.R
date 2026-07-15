@@ -23,7 +23,7 @@ load_brms_fits <- function(input_data){
   fit <- readRDS(fit_name)
 }
 datasets <- list(
-  iron_rec_cnpt, iron_rec_hfh, iron_tte_cvd, iron_tte_acm
+  iron_rec_cnpt, iron_rec_hfh, iron_tte_cnpt, iron_tte_cvd, iron_tte_acm
 )
 
 bayesian_fits <- purrr::map(datasets, .f = load_brms_fits)
@@ -47,12 +47,14 @@ get_bayes_trt_effects <- function(brmsobj){
         levels = c(
           "total_hfh_and_cv_death",
           "total_hfh",
+          "time_to_cv_death_or_hfh",
           "time_to_cv_death",
           "time_to_death"
         ),
         labels = c(
           "Total HFH and CV death",
           "Total HFH",
+          "Time to CV death or HFH",
           "Time to CV death",
           "Time to death"
         )
@@ -134,37 +136,62 @@ post_probs <- map(
       (num_to_printchar(post_prob, ndig = 3) == "1.00" ~ "> 99.999%"), 
       .default = paste("=", num_to_printchar(post_prob*100, ndig = 1))),
     nice_lab = paste0(hypothesis, " ", nice_p)
-  ) |> 
-  filter(outcome != "Time to CV death or HFH")
+  ) #|> 
+  #filter(outcome != "Time to CV death or HFH")
 post_probs
 
 
 all_bayes_trt_effects |> 
-  filter(outcome != "Time to CV death or HFH") |> 
   ggplot(aes(x = avg_effect, y = forcats::fct_rev(outcome), color = after_stat(x<1))) + 
-  geom_vline(xintercept = 1, lty = 3, alpha = 0.5) +
-  geom_dots(data = ~sample_n(.x, 5000)) +
-  stat_halfeye(color = NA, slab_fill = NA, slab_colour = "black", .width = 0.95) + 
+  geom_vline(xintercept = 1, lty = 1, alpha = 0.5) +
+  geom_vline(xintercept = 0.9, lty = 2, alpha = 0.5) +
+  geom_vline(xintercept = 0.8, lty = 2, alpha = 0.5) +
+  #geom_dots(data = ~sample_n(.x, 5000)) +
+  stat_halfeye(
+    slab_linewidth = 0.2,
+    color = NA,
+    slab_fill = "dodgerblue",
+    slab_colour = "black",
+    .width = 0.95,
+    scale = 0.75,
+    normalize = "panels"
+  ) + 
   geom_text(
     col = 1,
-    data = filter(avg_effects, outcome != "Time to CV death or HFH"),
+    data = avg_effects,
     aes(label = nice_est, x = 1.3),
     nudge_y = 0.5,
     size.unit = "pt",
-    size = 7,
+    size = 11,
     hjust = 0
   ) +
   #
-  # geom_label(fill = "white", color = "black", data = filter(post_probs, hypothesis == "P(RR)>1.0"), aes(label = nice_lab, x = 1.3), nudge_y = 0.3, size.unit = "pt", size = 7, hjust = 0) +
-  # geom_label(fill = "white", color = "black", data = filter(post_probs, hypothesis == "P(RR)<1.0"), aes(label = nice_lab, x = 1.3), nudge_y = 0.1, size.unit = "pt", size = 7, hjust = 0) +
-  geom_label(fill = "white", color = "black", data = filter(post_probs, hypothesis == "P(RR)<0.9"), aes(label = nice_lab, x = 0.9), nudge_y = -0.1, size.unit = "pt", size = 7, hjust = 0) +
-  geom_label(fill = "white", color = "black", data = filter(post_probs, hypothesis == "P(RR)<0.8"), aes(label = nice_lab, x = 0.85), nudge_y = -0.1, size.unit = "pt", size = 7, hjust = 1) +
+  geom_label(
+    fill = "white",
+    color = "black",
+    data = filter(post_probs, hypothesis == "P(RR)<0.9"),
+    aes(label = nice_lab, x = 0.9),
+    nudge_y = -0.1,
+    size.unit = "pt",
+    size = 10,
+    hjust = 0
+  ) +
+  geom_label(
+    fill = "white",
+    color = "black",
+    data = filter(post_probs, hypothesis == "P(RR)<0.8"),
+    aes(label = nice_lab, x = 0.8),
+    nudge_y = -0.1,
+    size.unit = "pt",
+    size = 10,
+    hjust = 1
+  ) +
   #
-  scale_x_continuous(limits = c(0.49, 2), breaks = c(0.5, 0.8, 1.0, 1.25), transform = "log") +
+  scale_x_continuous(limits = c(0.49, 2), breaks = c(0.5, 0.8, 0.9, 1.0, 1.25), transform = "log") +
   scale_color_manual(values = c("gray20", "dodgerblue")) +
   scale_color_manual(aesthetics = "slab_colour",values = c("gray20", "dodgerblue")) +
   labs(y = "", x = "Posterior distribution for average RR/HR", caption = bquote(tau ~ scale ~ prior == 0.125)) +
-  ggthemes::theme_few(base_size = 9) +
+  ggthemes::theme_few(base_size = 12) +
   theme(
     legend.position = "none",
     axis.text.y = element_text(hjust = 0)
