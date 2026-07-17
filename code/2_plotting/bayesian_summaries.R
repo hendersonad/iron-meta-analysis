@@ -126,11 +126,16 @@ post_probs <- map(
   ) |> 
   bind_rows() |> 
   janitor::clean_names() |> 
-  mutate(hypothesis = case_when(
-    hypothesis == "(Intercept) > 0" ~ "P(RR)>1.0",
-    hypothesis == "(Intercept) < 0" ~ "P(RR)<1.0",
-    hypothesis == "(Intercept)-(-0.1053605) < 0" ~ "P(RR)<0.9",
-    hypothesis == "(Intercept)-(-0.2231436) < 0" ~ "P(RR)<0.8"
+  mutate(
+    rr_hr = case_when(
+      str_detect(outcome, "Total HFH") ~ "RR",
+      .default = "HR"
+    ),
+    hypothesis = case_when(
+      hypothesis == "(Intercept) > 0" ~ paste0("P(", rr_hr, ")>1.0"),
+      hypothesis == "(Intercept) < 0" ~ paste0("P(", rr_hr, ")<1.0"),
+      hypothesis == "(Intercept)-(-0.1053605) < 0" ~ paste0("P(", rr_hr, ")<0.9"),
+      hypothesis == "(Intercept)-(-0.2231436) < 0" ~ paste0("P(", rr_hr, ")<0.8")
     ),
     nice_p = case_when(
       (num_to_printchar(post_prob, ndig = 3) == "1.00" ~ "> 99.999%"), 
@@ -153,7 +158,7 @@ all_bayes_trt_effects |>
     slab_fill = "dodgerblue",
     slab_colour = "black",
     .width = 0.95,
-    scale = 0.75,
+    scale = 0.7,
     normalize = "panels"
   ) + 
   geom_text(
@@ -169,9 +174,9 @@ all_bayes_trt_effects |>
   geom_label(
     fill = "white",
     color = "black",
-    data = filter(post_probs, hypothesis == "P(RR)<0.9"),
+    data = filter(post_probs, hypothesis == "P(RR)<0.9" | hypothesis == "P(HR)<0.9"),
     aes(label = nice_lab, x = 0.9),
-    nudge_y = -0.1,
+    nudge_y = -0.2,
     size.unit = "pt",
     size = 10,
     hjust = 0
@@ -179,15 +184,15 @@ all_bayes_trt_effects |>
   geom_label(
     fill = "white",
     color = "black",
-    data = filter(post_probs, hypothesis == "P(RR)<0.8"),
+    data = filter(post_probs, hypothesis == "P(RR)<0.8" | hypothesis == "P(HR)<0.8"),
     aes(label = nice_lab, x = 0.8),
-    nudge_y = -0.1,
+    nudge_y = -0.2,
     size.unit = "pt",
     size = 10,
     hjust = 1
   ) +
   #
-  scale_x_continuous(limits = c(0.49, 2), breaks = c(0.5, 0.8, 0.9, 1.0, 1.25), transform = "log") +
+  scale_x_continuous(limits = c(0.49, 2), breaks = c(0.5, 0.8, 0.9, 1.0, 1.11, 1.25, 2), transform = "log") +
   scale_color_manual(values = c("gray20", "dodgerblue")) +
   scale_color_manual(aesthetics = "slab_colour",values = c("gray20", "dodgerblue")) +
   labs(y = "", x = "Posterior distribution for average RR/HR", caption = bquote(tau ~ scale ~ prior == 0.125)) +
@@ -199,8 +204,6 @@ all_bayes_trt_effects |>
 
 ggsave(here::here("output/fairhf2/fig4_iron_bayesian_trt_effects.pdf"), width = 6, height = 6, units = "in")
 ggsave(here::here("output/fairhf2/fig4_iron_bayesian_trt_effects.tiff"), width = 6, height = 6, units = "in")
-
-
 
 
 # some alterations of the plot for HFA slides -------------------------
