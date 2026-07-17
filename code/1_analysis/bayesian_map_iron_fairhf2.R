@@ -656,8 +656,8 @@ orange_summ <- out_all |>
   ggthemes::theme_few()
 
 orange_summ
-ggsave(orange_summ, filename = here::here("output/fairhf2/fig3_orange_summary.pdf"), width = 6, height = 4.5, units = "in")
-ggsave(orange_summ, filename = here::here("output/fairhf2/fig3_orange_summary.tiff"), width = 6, height = 4.5, units = "in")
+ggsave(orange_summ, filename = here::here("output/fairhf2/fig3_orange_summary.pdf"), width = 6.5, height = 4.5, units = "in")
+ggsave(orange_summ, filename = here::here("output/fairhf2/fig3_orange_summary.tiff"), width = 6.5, height = 4.5, units = "in")
 
 ## without Predicted
 pooled_avg <- pull(out_all_sum[out_all_sum$trial == "Pooled", "b_Intercept"])
