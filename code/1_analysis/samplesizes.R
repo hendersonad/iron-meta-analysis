@@ -37,7 +37,7 @@ PASSED::power_NegativeBinomial(
   power = 0.8,
   sig.level = 0.05,
   mu1 = 0.289,
-  mu2 = 0.289*0.83,
+  mu2 = 0.289*0.82,
   duration = 2,
   theta = 1/3.2,
   equal.sample = TRUE,
@@ -49,7 +49,7 @@ PASSED::power_NegativeBinomial(
 epiR::epi.sscohortt(
   FT = 2,
   irexp0 = 0.289, 
-  irexp1 = 0.289*0.82,
+  irexp1 = 0.289*0.83,
   power = 0.8,
   n = NA
 )$n.total ## 4074 total
