@@ -27,3 +27,4 @@ docs/*
 datapaths.R
 *.Rproj
 .positai
+*.zip
