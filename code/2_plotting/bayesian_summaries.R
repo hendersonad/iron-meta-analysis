@@ -19,7 +19,7 @@ source(here::here("code/0_dataprep/iron_data_fairhf2.R"))
 
 load_brms_fits <- function(input_data){
   name <- stringr::str_replace_all(stringr::str_to_lower(input_data$outcome[1]), " ", "_")
-  fit_name <- paste0("brmsfits/fairhf2/", name, "_0.125.rds")
+  fit_name <- paste0("brmsfits/fairhf2/fairhf2_normalprior", name, "_0.125.rds")
   fit <- readRDS(fit_name)
 }
 datasets <- list(
@@ -35,7 +35,7 @@ get_bayes_trt_effects <- function(brmsobj){
     filename, "_0.125.rds"
   ) |> 
     stringr::str_remove_all(
-      "brmsfits/fairhf2/"
+      "brmsfits/fairhf2/fairhf2_normalprior"
     )
   
   brmsobj |> 
@@ -89,7 +89,7 @@ get_bayes_post_prob <- function(brmsobj){
     filename, "_0.125.rds"
   ) |> 
     stringr::str_remove_all(
-      "brmsfits/fairhf2/"
+      "brmsfits/fairhf2/fairhf2_normalprior"
     )
   
   brms::hypothesis(

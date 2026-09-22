@@ -144,7 +144,7 @@ ggsave(funnel_plot, filename = here("output/fairhf2_set3/fig4_funnelplot.tiff"),
 do_ranef_brms <- function(dataset = iron_data, tauprior = 0.5, savename = "temp"){
   random_model <- brms::bf(lrr | se(sd) ~ 1 + (1 | trial), family=gaussian)
   
-  random_prior <- prior(uniform(-2, 2), class="Intercept", lb = -2, ub = 2) +
+  random_prior <- prior(normal(0, 1.5), class="Intercept", lb = -2, ub = 2) +
     prior(normal(0, tauprior), class="sd", lb = 0, group="trial")
   stanvars <- stanvar(tauprior, name = "tauprior")
   
