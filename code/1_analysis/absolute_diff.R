@@ -11,19 +11,6 @@ theme_set(
     theme(plot.title = element_text(face = "bold"))
 )
 
-## Control group rates;
-# eTable9 from FAIR-HF2 has total HF hosp. https://cdn.jamanetwork.com/ama/content_public/journal/jama/0/joi250017supp5_prod_1744055676.66093.pdf?Expires=1747223445&Signature=be7wA1Yx0FcYtWGaob4YkFf0D5NHLtvvyzFkoFs4vHnb3AWG0JCWmzImX~-QybiZz-qZSUMt-61xpTSzBTdjxy5g93mqNLvgPlKS-FDntkzaCzv1lbj5OihKTngWS6of6nZyvvd9W-HBl4VMeoswXoubWbvcUOpa~hLyfpnixQiQgv7mOKTIfRx7T6pWIAWIwTh2S82LPESmoMnmCAjzLG0HVTk19d6pZ4ClDz~yc0kvFyX01RB61w32is8MSbi3~nY9xYvFeLr-GUchOaNn0K9hgWYXha7USCHoajG9rnz3BTHki0fJqjAgQoBYLk2jpEjTkCLRep1HVnN7nf5Dzw__&Key-Pair-Id=APKAIE5G5CRDK6RD3PGA
-#' FAIR-HF: 13/154 (1 year fup) = 8.4
-#' CONFIRM-HF: 44/151 = 29
-#' AFFIRM-AHF: 372/550 = 72.51
-#' IRONMAN: 411/568, published rate = 27.5
-#' HEART-FID: 971/1533, median 2.7 years. Rate for total HFH was 12, Rate of CVD was 8.2 (NEJM) so ~ 21
-97100/(1533*3) # 20.2
-#' FAIR-HF2: 393/547 efigure 5 NA curves. Rate for total HFH was 33 with 320 events so total fup was
-fairhf2_fup <- (320/33*100)
-# so a total rate of 40
-393/fairhf2_fup
-
 # get "average" follow-up time in most recent 3 trials from reported IQR
 controlrates <- tibble(
   study = factor(
@@ -59,25 +46,21 @@ controlrates <- tibble(
   ) |> 
   select(-qe_result) |>  
   mutate(
-    rate_median = 100 * events / ((p50/12) * n),
-    rate_simple = 100 * events / ((simplemean/12) * n),
-    rate_estimated = 100 * events / ((mean_est/12) * n),
+    rate_median = 100 * events / ((p50 / 12) * n),
+    rate_simple = 100 * events / ((simplemean / 12) * n),
+    rate_estimated = 100 * events / ((mean_est / 12) * n),
     follow_up_years = case_when(
-      study == "AFFIRM-AHF" ~ (events/72.51),  ## ?????????????????
-      study == "IRONMAN" ~ (events/27.5), 
-      .default = (mean_est / 12) * n /100
-      ),
-    rates_test = events/follow_up_years,
-    rates = case_when(
-      !is.na(rate_estimated) ~ rate_estimated, 
-      is.na(rate_estimated) ~ rate_median
-      )
-    )
+      study == "AFFIRM-AHF" ~ (events / 72.51),
+      study == "IRONMAN" ~ (events / 27.5),
+      .default = (mean_est / 12) * n / 100
+    ),
+    rates = events / follow_up_years
+  )
 
 controlrates |> print(width = Inf)
-controlrates |> select(events, p25, p50, p75, mean_est, follow_up_years, rates) #|> 
-  #gt::gt() |> 
-  #gt::gtsave(here("output/control_rates_data.docx"))
+controlrates |> select(events, p25, p50, p75, mean_est, follow_up_years, rates) |> 
+  gt::gt() |> 
+  gt::gtsave(here("output/control_rates_data.docx"))
 
 modelcontrolrates_priorcheck <- brm(
   brms::bf(events ~ 1 + offset(log(follow_up_years)) + (1 | study)), 
@@ -121,7 +104,6 @@ modelcontrolrates <- brm(
   file = "brmsfits/fairhf2/controlrates"
 )
 
-
 pp_check(modelcontrolrates)
 posterior_predictions <- posterior_predict(modelcontrolrates, ndraws = 50, newdata=mutate(controlrates, follow_up_years = 1))
 posterior_predictions |> head(10)
@@ -158,15 +140,14 @@ estimated_control_rate <- pooled_control_rates |>
 
 median_qi(estimated_control_rate)
 pooled_est <- pooled_control_rates |> as_tibble() |> mutate(study = "Total", n = sum(controlrates$n))
-#ghibli::ghibli_palettes
 colors <- ghibli::ghibli_palette("MononokeMedium", type = "discrete")[c(3, 5)]
-
 
 bayes_posterior_results <- plot_predictions(modelcontrolrates,
                  by = "study",
                  newdata = datagrid(grid_type = "counterfactual", follow_up_years = 1),
                  draw = FALSE) |> 
   mutate(result = sprintf("%.1f (%.1f, %.1f)", estimate, conf.low, conf.high)) 
+bayes_posterior_results |> gt::gt() |> gt::gtsave(here("output/fairhf2/bayes_poisson_rates.docx"))
 
 placebo_inputs <- plot_predictions(modelcontrolrates,
                                    by = "study",
@@ -226,7 +207,7 @@ ggsave(placebo_inputs,filename =  here("output/fairhf2/estimated_placebo_rates.p
 ggsave(placebo_inputs,filename =  here("output/fairhf2/estimated_placebo_rates.tiff"), width = 6, height = 4)
 
 ## load estimated pooled RR
-estimatedrr <- readRDS(here("brmsfits/fairhf2/fairhf2_normalpriortotal_hfh_and_cv_death_0.125.rds"))
+estimatedrr <- readRDS(here("brmsfits/fairhf2/fairhf2_normalprior/total_hfh_and_cv_death_0.125.rds"))
 
 rrs <- as_draws_df(estimatedrr, "b_Intercept") |> 
   pull(b_Intercept) |> 
@@ -243,6 +224,8 @@ median_qi(estimated_control_rate) ## Placebo rate
 median_qi(ratediffs$value) ## IV iron rate
 median_qi(ratediffs$ratediff) # Rate difference
 median_qi(rrs) ## rate ratio
+median_hdi(rrs)
+median_hdi(log(rrs)) |> mutate(across(is.numeric, exp))
 
 set.seed(2134)
 ratediff_plot <- ratediffs |> 
@@ -285,36 +268,6 @@ ggsave(filename = here("output/fairhf2/estimated_benefits_combined.pdf"), width 
 ggsave(filename = here("output/fairhf2/estimated_benefits_combined.tiff"), width = 5.5, height = 9)
 
 
-# Estimate absolute benefit, using only recent trials ---------------------
-controlrates
-recent_rates <- marginaleffects::avg_predictions(
-  modelcontrolrates, 
-  newdata = datagrid(
-    grid_type = "counterfactual", 
-    study = c("IRONMAN", "HEART-FID", "FAIR-HF2"), 
-    follow_up_years = 1
-  ),
-  type = "response"
-)
-
-recent_control_rate <- recent_rates |>  
-  get_draws() |> 
-  pull(draw)
-
-median_qi(recent_control_rate)
-
-x2 <- map(rrs, function(x) x*recent_control_rate) |> bind_cols() |> set_names(paste0("sim", 1:length(rrs))) |> bind_cols(estimated_control_rate)
-colnames(x2)[length(rrs)+1] <- "controlrate"
-
-ratediffs2 <- x2 |> 
-  tidyr::pivot_longer(starts_with("sim")) |> 
-  mutate(ratediff = value - controlrate)
-
-median_qi(recent_control_rate) ## Placebo rate - average for these trials (?)
-median_qi(ratediffs2$value) ## IV iron rate
-median_qi(ratediffs2$ratediff) # Rate difference
-
-
 
 # plot rate_difference across baseline risk -------------------------------
 absolute_benefit_plot <- ratediffs |> 
@@ -324,6 +277,10 @@ absolute_benefit_plot <- ratediffs |>
     p025 = quantile(ratediff, 0.025),
     p975 = quantile(ratediff, 0.975)
     )
+
+#' to annotate the plot with estimated control rates
+#' from each study: merge on Bayes posterior estimates, 
+#' and the pooled control overall average:
 
 labelrates <- absolute_benefit_plot |>
   mutate(merge = round(controlrate, 1)) |> 
@@ -344,13 +301,11 @@ labelrates <- absolute_benefit_plot |>
   select(study, controlrate, p50) |> 
   mutate(label = sprintf("%s\n%.1f", study, controlrate))
 
-  
 absolute_benefit_plot |> 
   ggplot(aes(x = controlrate, y = p50)) + 
   geom_hline(yintercept = 0, linetype = 2) +
   geom_line() + 
   geom_ribbon(aes(ymin = p025, ymax = p975), alpha = 0.4) +
-  #scale_x_log10(limits = c(15, 100)) + 
   ggrepel::geom_label_repel(
     data = labelrates,
     aes(x = controlrate, label = label, y = p50),
@@ -363,4 +318,4 @@ absolute_benefit_plot |>
 ggsave(here("output/fairhf2/absolute_benefit_by_baseline.pdf"), width = 6, height = 4)
 
 median_qi(ratediffs$ratediff)
-31.7-(31.7*0.83)
+31.7-(31.7*0.83) # compare to the crudest estimate possible
