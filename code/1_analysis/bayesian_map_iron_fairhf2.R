@@ -152,7 +152,7 @@ do_ranef_brms <- function(dataset = iron_data, tauprior = 0.5, savename = "temp"
     prior(normal(0, tauprior), class="sd", lb = 0, group="trial")
   stanvars <- stanvar(tauprior, name = "tauprior")
   
-  fit_name <- paste0("brmsfits/fairhf2/fairhf2_normalprior", savename, "_", tauprior)
+  fit_name <- paste0("brmsfits/fairhf2/fairhf2_normalprior/", savename, "_", tauprior)
   brm(
     random_model,
     dataset,
@@ -575,6 +575,59 @@ plot_grid(
 ggsave(here::here("output/fairhf2/fig3_iron_tau_forestplots.pdf"), width = 14, height = 4.5, units = "in")
 ggsave(here::here("output/fairhf2/fig3_iron_tau_forestplots.tiff"), width = 14, height = 4.5, units = "in")
 
+
+# summarising bayesian posterior probabilities ----------------------------
+post_prob <- function(brmsfit, threshold){
+  spread_draws(brmsfit, b_Intercept) |>
+    summarise(mean(b_Intercept < threshold))
+}  
+    
+post_prob(bayesian_fits[[1]]$ranef_brms_0pt5, 0)
+post_prob(bayesian_fits[[1]]$ranef_brms_0pt125, 0)
+post_prob(bayesian_fits[[1]]$ranef_brms_0pt05, 0)
+
+post_prob(bayesian_fits[[1]]$ranef_brms_0pt5, log(0.9))
+post_prob(bayesian_fits[[1]]$ranef_brms_0pt125, log(0.9))
+post_prob(bayesian_fits[[1]]$ranef_brms_0pt05, log(0.9))
+
+post_prob(bayesian_fits[[1]]$ranef_brms_0pt5, log(0.8))
+post_prob(bayesian_fits[[1]]$ranef_brms_0pt125, log(0.8))
+post_prob(bayesian_fits[[1]]$ranef_brms_0pt05, log(0.8))
+
+
+get_posterior_probs <- function(model_list){
+  tau5 <- as_draws_df(model_list$ranef_brms_0pt5)$b_Intercept |> exp()
+  tau125 <- as_draws_df(model_list$ranef_brms_0pt125)$b_Intercept |> exp()
+  tau05 <- as_draws_df(model_list$ranef_brms_0pt05)$b_Intercept |> exp()
+  
+  calculate_post_prob <- function(rr, threshold){
+    100*sum(rr < threshold)/length(rr)
+  }
+  
+  thresholds <- c(1, 0.9, 0.8)
+  
+  df <- data.frame(tau5, tau125, tau05)
+  
+  df |>
+    tidyr::pivot_longer(everything(), names_to = "model", values_to = "value") |>
+    tidyr::crossing(threshold = thresholds) |>
+    group_by(model, threshold) |>
+    summarise(post_prob = 100 * mean(value < threshold), .groups = "drop")
+}
+
+bayes_posterior_probs <- purrr::map(bayesian_fits, get_posterior_probs)
+
+outcome_vector_postprob <- rep(levels(all_iron_estimates$outcome), each = 9)
+
+all_bayes_estimates_postprob <- bind_rows(bayes_posterior_probs) |> 
+  mutate(outcome = factor(outcome_vector_postprob, levels = levels(all_iron_estimates$outcome))) |> 
+  janitor::clean_names() |> 
+  tidyr::pivot_wider(names_from = threshold, values_from = post_prob) |> 
+  dplyr::select(outcome, everything()) |> 
+  dplyr::arrange(model, outcome)
+
+gt::gt(all_bayes_estimates_postprob) |> 
+  gt::gtsave(here::here("output/fairhf2/table9_bayesian_posterior_probs.docx"))
 
 
 # focus on predictions and tau 0.125 --------------------------------------
