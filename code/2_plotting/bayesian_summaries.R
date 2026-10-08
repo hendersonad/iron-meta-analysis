@@ -193,7 +193,7 @@ all_bayes_trt_effects |>
     hjust = 1
   ) +
   #
-  scale_x_continuous(limits = c(0.49, 2), breaks = c(0.5, 0.8, 0.9, 1.0, 1.11, 1.25, 2), transform = "log") +
+  scale_x_continuous(limits = c(0.49, 2), breaks = c(0.5, 1.0, 2), transform = "log") +
   scale_color_manual(values = c("gray20", "dodgerblue")) +
   scale_color_manual(aesthetics = "slab_colour",values = c("gray20", "dodgerblue")) +
   labs(y = "", x = "Posterior distribution for average RR/HR", caption = bquote(tau ~ scale ~ prior == 0.125)) +
@@ -297,4 +297,3 @@ all_bayes_trt_effects |>
 
 ggsave(here::here("output/hfa_figures/fig403_iron_bayesian_trt_effects_nolabs_primary.pdf"), width = 14.94, height = 6.63, units = "cm")
 ggsave(here::here("output/hfa_figures/fig403_iron_bayesian_trt_effects_nolabs_primary.jpeg"), width = 14.94, height = 6.63, units = "cm")
-
