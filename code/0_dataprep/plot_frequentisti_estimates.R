@@ -76,7 +76,7 @@ primary_estimates <- all_iron_estimates |>
   theme(plot.title = element_text(hjust = 0, face = "bold"),
         plot.title.position = "plot",
         strip.text = element_text(hjust = 0))
-ggsave(primary_estimates, filename = here::here("output/fairhf2/fig1_trial_estimates_primary.pdf"), width = 5.76, height = 3.08, units = "cm")
+ggsave(primary_estimates, filename = here::here("output/fairhf2/fig1_trial_estimates_primary.pdf"), width = 5.54, height = 3.9, units = "cm")
 
 ## 
 segment_map <- all_estimates + 
