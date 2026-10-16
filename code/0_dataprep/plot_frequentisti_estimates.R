@@ -59,6 +59,25 @@ all_estimates
 ggsave(all_estimates, filename = here::here("output/fairhf2/fig1_trial_estimates.pdf"), width = 8 , height = 6, units = "in")
 ggsave(all_estimates, filename = here::here("output/fairhf2/fig1_trial_estimates.tiff"), width = 8 , height = 6, units = "in")
 
+labsize <- 3.5
+primary_estimates <- all_iron_estimates |> 
+  filter(outcome == "Total HFH and CV death") |> 
+  ggplot(aes(x = estimate, xmin = lci, xmax = uci, y = fct_rev(trial), group = trial)) +
+  #geom_text(aes(label = formatC(uci, format = "f", width = 3, flag = "0", digits = 2), x = uci), nudge_y = -0.3, size = labsize, size.unit = "pt") + 
+  #geom_text(aes(label = formatC(lci, format = "f", width = 3, flag = "0", digits = 2), x = lci), nudge_y = -0.3, size = labsize, size.unit = "pt") + 
+  #geom_text(aes(label = formatC(estimate, format = "f", width = 3, flag = "0", digits = 2), x = estimate), nudge_y = 0.3, size = labsize, size.unit = "pt") +
+  geom_vline(xintercept = 1, lty = 1, alpha = 0.1) +
+  geom_linerange() +
+  geom_point(size = 0.75, pch = 16) +
+  facet_wrap(~outcome, ncol = 2) +
+  scale_x_continuous(limits = c(0.125, 2.5), breaks = c(0.5, 1.0, 2.0), transform = "log") +
+  labs(y = "", x = "Rate ratio") +
+  ggthemes::theme_few(base_size = 8) +
+  theme(plot.title = element_text(hjust = 0, face = "bold"),
+        plot.title.position = "plot",
+        strip.text = element_text(hjust = 0))
+ggsave(primary_estimates, filename = here::here("output/fairhf2/fig1_trial_estimates_primary.pdf"), width = 5.76, height = 3.08, units = "cm")
+
 ## 
 segment_map <- all_estimates + 
   scale_x_continuous(limits = c(0.05, 2.5), breaks = c(0.5, 1.0, 2.0), transform = "log") +
