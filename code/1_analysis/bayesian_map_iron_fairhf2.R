@@ -144,20 +144,22 @@ ggsave(funnel_plot, filename = here("output/fairhf2/fig4_funnelplot.pdf"), width
 ggsave(funnel_plot, filename = here("output/fairhf2/fig4_funnelplot.tiff"), width = 3, height = 8)
 
 # Bayesian meta analyses with brms --------------------------------------------------
+## prior quanitle for treatment effect
+exp(qnorm(mean = 0, sd = 1.5, p = c(0.025, 0.25, 0.5, 0.75, 0.975)))
+
 ## random effects
-do_ranef_brms <- function(dataset = iron_data, tauprior = 0.5, savename = "temp"){
+do_ranef_brms <- function(dataset = iron_data, tauprior = "string", savename = "temp"){
   random_model <- brms::bf(lrr | se(sd) ~ 1 + (1 | trial), family=gaussian)
   
-  random_prior <- prior(uniform(-2, 2), class="Intercept", lb = -2, ub = 2) +
-    prior(normal(0, tauprior), class="sd", lb = 0, group="trial")
-  stanvars <- stanvar(tauprior, name = "tauprior")
+  intercept_prior <- set_prior("normal(0, 1.5)", class = "Intercept")
+  random_prior <- prior_string(tauprior, class = "sd", group = "trial", lb = 0)
   
-  fit_name <- paste0("brmsfits/fairhf2/", savename, "_", tauprior)
+  fit_name <- paste0("brmsfits/fairhf2/fairhf2_normalprior/", savename)
   brm(
     random_model,
     dataset,
-    prior = random_prior, 
-    stanvars = stanvars,
+    prior = intercept_prior + random_prior, 
+    sample_prior="yes",
     cores = 4,
     chains = 4, 
     control = list(adapt_delta = 0.99),
@@ -171,9 +173,9 @@ do_ranef_brms <- function(dataset = iron_data, tauprior = 0.5, savename = "temp"
 
 do_bayesian_taus <- function(input_data){
   name <- stringr::str_replace_all(stringr::str_to_lower(input_data$outcome[1]), " ", "_")
-  ranef_brms_0pt5 <- do_ranef_brms(dataset = input_data, 0.5, savename = name)
-  ranef_brms_0pt125 <- do_ranef_brms(dataset = input_data, 0.125, savename = name)
-  ranef_brms_0pt05 <- do_ranef_brms(dataset = input_data, 0.05, savename = name)
+  ranef_brms_0pt5 <- do_ranef_brms(dataset = input_data, "normal(0, 0.5)", savename = paste0(name, "_0.5"))
+  ranef_brms_0pt125 <- do_ranef_brms(dataset = input_data, "normal(0, 0.125)", savename = paste0(name, "_0.125"))
+  ranef_brms_0pt05 <- do_ranef_brms(dataset = input_data, "normal(0, 0.05)", savename = paste0(name, "_0.05"))
   
   return(list(
     ranef_brms_0pt5 = ranef_brms_0pt5,
@@ -480,7 +482,7 @@ bayes_gt |>
   gt::gtsave(here::here("output/fairhf2/table2_bayesian_results.docx"))
 
 # exploring predictions with different tau  -------------------------------
-new_trial <- data.frame(trial="newstudy", sd = 1e100)
+new_trial <- data.frame(trial="newstudy", sd = 100000)
 
 num_to_printchar <- function(x){
   formatC(x, digits = 2, width = 3 , flag = 0, format = "f", big.mark = ",")
@@ -497,7 +499,7 @@ forestplot_bayesmeta <- function(brms_object, fillcol, rawdata = iron_data){
   out_f <- spread_draws(brms_object, b_Intercept) |> 
     mutate(trial = "Pooled")
   
-  # Predicted effect in 100 new studiess
+  # Predicted effect in 1000 new studiess
   out_predict <- posterior_linpred(brms_object,
                                    newdata = new_trial,
                                    # apply inverse link function
@@ -547,13 +549,6 @@ forestplot_bayesmeta <- function(brms_object, fillcol, rawdata = iron_data){
       hjust = 0,
       position = position_nudge(y = .4)
     ) +
-    # add posterior predictive probability 
-    geom_text(
-      data = post_pred_prob,
-      aes(label = str_glue("P(RR<1) = {post_pred_prob}%"), x = 1.15),
-      position = position_nudge(y = -0.2),
-      hjust = 0
-    ) +
     # Observed as empty points
     geom_point(
       data = rawdata |> mutate(trial = str_replace_all(trial, "\\.", " ")), 
@@ -575,6 +570,59 @@ plot_grid(
 ggsave(here::here("output/fairhf2/fig3_iron_tau_forestplots.pdf"), width = 14, height = 4.5, units = "in")
 ggsave(here::here("output/fairhf2/fig3_iron_tau_forestplots.tiff"), width = 14, height = 4.5, units = "in")
 
+
+# summarising bayesian posterior probabilities ----------------------------
+post_prob <- function(brmsfit, threshold){
+  spread_draws(brmsfit, b_Intercept) |>
+    summarise(mean(b_Intercept < threshold))
+}  
+    
+post_prob(bayesian_fits[[1]]$ranef_brms_0pt5, 0)
+post_prob(bayesian_fits[[1]]$ranef_brms_0pt125, 0)
+post_prob(bayesian_fits[[1]]$ranef_brms_0pt05, 0)
+
+post_prob(bayesian_fits[[1]]$ranef_brms_0pt5, log(0.9))
+post_prob(bayesian_fits[[1]]$ranef_brms_0pt125, log(0.9))
+post_prob(bayesian_fits[[1]]$ranef_brms_0pt05, log(0.9))
+
+post_prob(bayesian_fits[[1]]$ranef_brms_0pt5, log(0.8))
+post_prob(bayesian_fits[[1]]$ranef_brms_0pt125, log(0.8))
+post_prob(bayesian_fits[[1]]$ranef_brms_0pt05, log(0.8))
+
+
+get_posterior_probs <- function(model_list){
+  tau5 <- as_draws_df(model_list$ranef_brms_0pt5)$b_Intercept |> exp()
+  tau125 <- as_draws_df(model_list$ranef_brms_0pt125)$b_Intercept |> exp()
+  tau05 <- as_draws_df(model_list$ranef_brms_0pt05)$b_Intercept |> exp()
+  
+  calculate_post_prob <- function(rr, threshold){
+    100*sum(rr < threshold)/length(rr)
+  }
+  
+  thresholds <- c(1, 0.9, 0.8)
+  
+  df <- data.frame(tau5, tau125, tau05)
+  
+  df |>
+    tidyr::pivot_longer(everything(), names_to = "model", values_to = "value") |>
+    tidyr::crossing(threshold = thresholds) |>
+    group_by(model, threshold) |>
+    summarise(post_prob = 100 * mean(value < threshold), .groups = "drop")
+}
+
+bayes_posterior_probs <- purrr::map(bayesian_fits, get_posterior_probs)
+
+outcome_vector_postprob <- rep(levels(all_iron_estimates$outcome), each = 9)
+
+all_bayes_estimates_postprob <- bind_rows(bayes_posterior_probs) |> 
+  mutate(outcome = factor(outcome_vector_postprob, levels = levels(all_iron_estimates$outcome))) |> 
+  janitor::clean_names() |> 
+  tidyr::pivot_wider(names_from = threshold, values_from = post_prob) |> 
+  dplyr::select(outcome, everything()) |> 
+  dplyr::arrange(model, outcome)
+
+gt::gt(all_bayes_estimates_postprob) |> 
+  gt::gtsave(here::here("output/fairhf2/table9_bayesian_posterior_probs.docx"))
 
 
 # focus on predictions and tau 0.125 --------------------------------------
@@ -833,3 +881,26 @@ out_all |>
 
 ggsave(here::here("output/fairhf2/fig3_orange_summary_predicted_pooled.pdf"), width = 6, height = 2.5, units = "in")
 
+
+# check prediction interval method makes sense ----------------------------
+model <- bayesian_fits[[1]]$ranef_brms_0pt125
+draws <- as_draws_df(model)
+mu    <- draws$b_Intercept
+tau   <- draws$sd_trial__Intercept
+
+pred_log <- posterior_linpred(model,
+                              newdata = data.frame(trial = "newstudy", sd = 0),
+                              transform = FALSE,
+                              allow_new_levels = TRUE,
+                              sample_new_levels = "gaussian",
+                              ndraws = NULL)[, 1]   # all draws, in the same order as draws
+
+dev <- pred_log - mu        # the new-trial deviation from the mean, per draw
+
+# 1. Deviation should be N(0, tau^2) draw by draw, so dev / tau should be ~ N(0, 1)
+sd(dev / tau)               # expect ~1
+mean(dev / tau)             # expect ~0
+
+# 2. Pooled check against the mixture formula
+sd(pred_log)                # observed predictive SD
+sqrt(var(mu) + mean(tau^2)) # expected from the mixture

@@ -27,3 +27,5 @@ docs/*
 datapaths.R
 *.Rproj
 .positai
+*.zip
+/other_meta_anlayses
