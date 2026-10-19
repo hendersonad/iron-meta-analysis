@@ -570,13 +570,12 @@ plot_grid(
 ggsave(here::here("output/fairhf2/fig3_iron_tau_forestplots.pdf"), width = 14, height = 4.5, units = "in")
 ggsave(here::here("output/fairhf2/fig3_iron_tau_forestplots.tiff"), width = 14, height = 4.5, units = "in")
 
-
 # summarising bayesian posterior probabilities ----------------------------
 post_prob <- function(brmsfit, threshold){
   spread_draws(brmsfit, b_Intercept) |>
     summarise(mean(b_Intercept < threshold))
-}  
-    
+}
+
 post_prob(bayesian_fits[[1]]$ranef_brms_0pt5, 0)
 post_prob(bayesian_fits[[1]]$ranef_brms_0pt125, 0)
 post_prob(bayesian_fits[[1]]$ranef_brms_0pt05, 0)
@@ -589,25 +588,28 @@ post_prob(bayesian_fits[[1]]$ranef_brms_0pt5, log(0.8))
 post_prob(bayesian_fits[[1]]$ranef_brms_0pt125, log(0.8))
 post_prob(bayesian_fits[[1]]$ranef_brms_0pt05, log(0.8))
 
-
 get_posterior_probs <- function(model_list){
   tau5 <- as_draws_df(model_list$ranef_brms_0pt5)$b_Intercept |> exp()
   tau125 <- as_draws_df(model_list$ranef_brms_0pt125)$b_Intercept |> exp()
   tau05 <- as_draws_df(model_list$ranef_brms_0pt05)$b_Intercept |> exp()
-  
-  calculate_post_prob <- function(rr, threshold){
-    100*sum(rr < threshold)/length(rr)
-  }
-  
+
   thresholds <- c(1, 0.9, 0.8)
   
-  df <- data.frame(tau5, tau125, tau05)
-  
-  df |>
-    tidyr::pivot_longer(everything(), names_to = "model", values_to = "value") |>
-    tidyr::crossing(threshold = thresholds) |>
-    group_by(model, threshold) |>
-    summarise(post_prob = 100 * mean(value < threshold), .groups = "drop")
+  calc_post_probs <- function(effect){
+    tibble(avg_effect = effect) |> 
+      summarise(
+        `1`   = 100*mean(avg_effect < 1),
+        `0.9` = 100*mean(avg_effect < 0.9),
+        `0.8` = 100*mean(avg_effect < 0.8),
+        .groups = "drop"
+      ) |>
+        pivot_longer(everything(), names_to = "threshold", values_to = "post_prob")
+  }
+  bind_rows(
+    mutate(calc_post_probs(tau5), model = "tau5"),
+    mutate(calc_post_probs(tau125), model = "tau125"),
+    mutate(calc_post_probs(tau05), model = "tau05")
+  )
 }
 
 bayes_posterior_probs <- purrr::map(bayesian_fits, get_posterior_probs)
